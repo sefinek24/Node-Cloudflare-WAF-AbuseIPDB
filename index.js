@@ -6,19 +6,23 @@ const generateComment = require('./scripts/generateComment.js');
 const isImageRequest = require('./scripts/isImageRequest.js');
 const headers = require('./scripts/headers.js');
 const { logToCSV, readReportedIPs } = require('./scripts/csv.js');
+const formatDelay = require('./scripts/formatDelay.js');
 const log = require('./scripts/log.js');
 
 const TIME_WINDOW_MS = 20 * 60 * 1000;
 const COOLDOWN_MS = 2000;
 const BLOCK_TIME_MS = 5 * 60 * 60 * 1000; // 5h
 
-const getBlockedIP = async () => {
+const fetchBlockedIPs = async () => {
 	try {
-		const res = await axios.post('https://api.cloudflare.com/client/v4/graphql', PAYLOAD, { headers: headers.CLOUDFLARE });
-		if (!res.data?.data) return log('error', `Failed to retrieve data from Cloudflare (status ${res.status}). Missing permissions? Check your token. The required permission is Zone.Analytics.Read.`);
+		const response = await axios.post('https://api.cloudflare.com/client/v4/graphql', PAYLOAD, { headers: headers.CLOUDFLARE });
+		if (!response.data?.data) {
+			log('error', `Failed to retrieve data from Cloudflare (status ${response.status}). Missing permissions? Check your token. The required permission is Zone.Analytics.Read.`);
+			return null;
+		}
 
-		log('info', `Fetched ${res.data.data.viewer.zones[0].firewallEventsAdaptive.length} events from Cloudflare`);
-		return res.data;
+		log('info', `Fetched ${response.data.data.viewer.zones[0].firewallEventsAdaptive.length} events from Cloudflare`);
+		return response.data.data.viewer.zones[0].firewallEventsAdaptive;
 	} catch (err) {
 		if (err.response) {
 			log('error', `${err.response.status} HTTP ERROR (api.cloudflare.com)\n${JSON.stringify(err.response.data, null, 2)}`);
@@ -32,54 +36,51 @@ const getBlockedIP = async () => {
 	}
 };
 
-const reportBadIP = async (it, skippedRayIds, blockedIPs) => {
-	const url = `${it.clientRequestHTTPHost}${it.clientRequestPath}`;
-	const country = it.clientCountryName;
-
-	if (isImageRequest(it.clientRequestPath)) {
-		skippedRayIds.add(it.rayName);
-		logToCSV(new Date(), it.rayName, it.clientIP, url, 'Skipped - Image Request', country);
-		log('info', `Skipping: ${it.clientIP}; URL: ${url}; (Image request detected)`);
-		return false;
-	}
-
+const reportIP = async (event, url, country, skippedRayIds, blockedIPs, cycleErrorCounts) => {
 	try {
 		await axios.post('https://api.abuseipdb.com/api/v2/report', {
-			ip: it.clientIP,
+			ip: event.clientIP,
 			categories: '19',
-			comment: generateComment(it)
+			comment: generateComment(event)
 		}, { headers: headers.ABUSEIPDB });
 
-		logToCSV(new Date(), it.rayName, it.clientIP, url, 'Reported', country);
-		log('info', `Reported: ${it.clientIP}; URL: ${url}`);
+		logToCSV(new Date(), event.rayName, event.clientIP, url, 'Reported', country);
+		log('info', `Reported: ${event.clientIP}; URL: ${url}`);
 		return true;
 	} catch (err) {
-		if (err.response && err.response.status === 429) {
-			blockedIPs.set(it.clientIP, Date.now());
-			logToCSV(new Date(), it.rayName, it.clientIP, url, 'Blocked - 429 Too Many Requests', country);
-			log('warn', `Rate limited (429) while reporting: ${it.clientIP}; URL: ${url}; (Will retry after 5 hours)`);
+		if (err.response) {
+			if (err.response.status === 429) {
+				blockedIPs.set(event.clientIP, Date.now());
+				logToCSV(new Date(), event.rayName, event.clientIP, url, 'Blocked - 429 Too Many Requests', country);
+				log('warn', `Rate limited (429) while reporting: ${event.clientIP}; URL: ${url}; (Will retry after 5 hours)`);
+				cycleErrorCounts.blocked++;
+			} else {
+				log('error', `Error ${err.response.status} while reporting: ${event.clientIP}; URL: ${url}; Message: ${err.response.data.message}`);
+				cycleErrorCounts.otherErrors++;
+			}
+		} else if (err.request) {
+			log('error', `No response from AbuseIPDB while reporting: ${event.clientIP}; URL: ${url}`);
+			cycleErrorCounts.noResponse++;
 		} else {
-			log('error', `${err.message} - IP: ${it.clientIP}; Domain: ${it.clientRequestHTTPHost}; URL: ${url}`);
+			log('error', `Unknown error: ${err.message} while reporting: ${event.clientIP}; URL: ${url}`);
+			cycleErrorCounts.otherErrors++;
 		}
 
 		return false;
 	}
 };
 
-const exceptedRuleId = new Set(['fa01280809254f82978e827892db4e46']);
+const exceptedRuleIds = new Set(['fa01280809254f82978e827892db4e46']);
 
 const shouldReportDomain = (domain, reportedIPs) => {
 	const lastReport = reportedIPs.find(entry => entry.domain === domain);
 	if (!lastReport) return true;
-	const timeSinceLastReport = Date.now() - lastReport.timestamp.getTime();
-	return timeSinceLastReport > TIME_WINDOW_MS;
+	return (Date.now() - lastReport.timestamp.getTime()) > TIME_WINDOW_MS;
 };
 
-const shouldSkipBlockedIP = (ip, blockedIPs) => {
-	const lastBlock = blockedIPs.get(ip);
-	if (!lastBlock) return false;
-	const timeSinceLastBlock = Date.now() - lastBlock;
-	return timeSinceLastBlock < BLOCK_TIME_MS;
+const isIPBlockedRecently = (ip, blockedIPs) => {
+	const lastBlockTime = blockedIPs.get(ip);
+	return lastBlockTime && (Date.now() - lastBlockTime) < BLOCK_TIME_MS;
 };
 
 (async () => {
@@ -92,28 +93,58 @@ const shouldSkipBlockedIP = (ip, blockedIPs) => {
 	while (true) {
 		log('info', '===================== New Reporting Cycle =====================');
 
-		const data = await getBlockedIP();
+		let cycleImageSkippedCount = 0, cycleProcessedCount = 0, cycleReportedCount = 0, cycleSkippedCount = 0;
+		const cycleErrorCounts = { blocked: 0, noResponse: 0, otherErrors: 0 };
 
-		if (data && data.data) {
-			const ipBadList = data.data.viewer.zones[0].firewallEventsAdaptive;
+		const blockedIPEvents = await fetchBlockedIPs();
+		if (blockedIPEvents) {
+			for (const event of blockedIPEvents) {
+				cycleProcessedCount++;
 
-			for (const i of ipBadList) {
-				if (skippedRayIds.has(i.rayName) || shouldSkipBlockedIP(i.clientIP, blockedIPs)) continue;
+				if (skippedRayIds.has(event.rayName) || isIPBlockedRecently(event.clientIP, blockedIPs)) {
+					cycleSkippedCount++;
+					continue;
+				}
 
-				if (!exceptedRuleId.has(i.ruleId) && shouldReportDomain(i.clientRequestHTTPHost, reportedIPs)) {
-					const reported = await reportBadIP(i, skippedRayIds, blockedIPs);
-					if (reported) await new Promise(resolve => setTimeout(resolve, COOLDOWN_MS));
-				} else if (!skippedRayIds.has(i.rayName)) {
-					skippedRayIds.add(i.rayName);
+				const url = `${event.clientRequestHTTPHost}${event.clientRequestPath}`;
+				const country = event.clientCountryName;
 
-					const url = `${i.clientRequestHTTPHost}${i.clientRequestPath}`;
-					logToCSV(new Date(), i.rayName, i.clientIP, url, 'Skipped - Already Reported', i.clientCountryName);
-					log('info', `Skipping: ${i.clientIP} (domain ${i.clientRequestHTTPHost}); URL: ${url}; (Already reported recently)`);
+				if (isImageRequest(event.clientRequestPath)) {
+					skippedRayIds.add(event.rayName);
+					logToCSV(new Date(), event.rayName, event.clientIP, url, 'Skipped - Image Request', country);
+					log('info', `Skipping: ${event.clientIP}; URL: ${url}; (Image request detected)`);
+					cycleImageSkippedCount++;
+					continue;
+				}
+
+				if (!exceptedRuleIds.has(event.ruleId) && shouldReportDomain(event.clientRequestHTTPHost, reportedIPs)) {
+					const wasReported = await reportIP(event, url, country, skippedRayIds, blockedIPs, cycleErrorCounts);
+					if (wasReported) {
+						cycleReportedCount++;
+						await new Promise(resolve => setTimeout(resolve, COOLDOWN_MS));
+					}
+				} else {
+					skippedRayIds.add(event.rayName);
+					logToCSV(new Date(), event.rayName, event.clientIP, url, 'Skipped - Already Reported', country);
+					log('info', `Skipping: ${event.clientIP} (domain ${event.clientRequestHTTPHost}); URL: ${url}; (Already reported recently)`);
+					cycleSkippedCount++;
 				}
 			}
 		}
 
+		// Podsumowanie cyklu
+		log('info', 'Cycle Summary:');
+		log('info', `- Total IPs processed: ${cycleProcessedCount}`);
+		log('info', `- Reported IPs: ${cycleReportedCount}`);
+		log('info', `- Skipped IPs: ${cycleSkippedCount}`);
+		log('info', `- Skipped due to Image Requests: ${cycleImageSkippedCount}`);
+		log('info', `- 429 Too Many Requests: ${cycleErrorCounts.blocked}`);
+		log('info', `- No response errors: ${cycleErrorCounts.noResponse}`);
+		log('info', `- Other errors: ${cycleErrorCounts.otherErrors}`);
 		log('info', '==================== End of Reporting Cycle ====================');
-		await new Promise(resolve => setTimeout(resolve, process.env.NODE_ENV === 'production' ? 2 * 60 * 60 * 1000 : 10 * 1000));
+
+		const delay = process.env.NODE_ENV === 'production' ? 2 * 60 * 60 * 1000 : 10 * 1000;
+		log('info', `Waiting ${formatDelay(delay)}...`);
+		await new Promise(resolve => setTimeout(resolve, delay));
 	}
 })();
