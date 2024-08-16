@@ -1,169 +1,67 @@
 require('dotenv').config();
+
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
+const PAYLOAD = require('./scripts/payload.js');
+const generateComment = require('./scripts/generateComment.js');
+const isImageRequest = require('./scripts/isImageRequest.js');
+const headers = require('./scripts/headers.js');
+const { logToCSV, readReportedIPs } = require('./scripts/csv.js');
+const log = require('./scripts/log.js');
 
-const {
-	CLOUDFLARE_ZONE_ID,
-	CLOUDFLARE_EMAIL,
-	CLOUDFLARE_API_KEY,
-	ABUSEIPDB_API_KEY,
-	NODE_ENV
-} = process.env;
-
-const CSV_FILE_PATH = path.join(__dirname, 'reported_ips.csv');
 const TIME_WINDOW_MS = 20 * 60 * 1000;
-const COOLDOWN_MS = 1000;
+const COOLDOWN_MS = 2000;
 const BLOCK_TIME_MS = 5 * 60 * 60 * 1000; // 5h
-
-if (!fs.existsSync(CSV_FILE_PATH)) {
-	fs.writeFileSync(CSV_FILE_PATH, 'Timestamp,RayID,IP,Endpoint,Action,Country\n');
-}
-
-const PAYLOAD = {
-	query: `query ListFirewallEvents($zoneTag: string, $filter: FirewallEventsAdaptiveFilter_InputObject) {
-        viewer {
-            zones(filter: { zoneTag: $zoneTag }) {
-                firewallEventsAdaptive(
-                    filter: $filter
-                    limit: 1000
-                    orderBy: [datetime_DESC]
-                ) {
-                    action
-                    clientASNDescription
-                    clientAsn
-                    clientCountryName
-                    clientIP
-                    clientRequestHTTPHost
-                    clientRequestHTTPMethodName
-                    clientRequestHTTPProtocol
-                    clientRequestPath
-                    clientRequestQuery
-                    datetime
-                    rayName
-                    ruleId
-                    source
-                    userAgent
-                }
-            }
-        }
-    }`,
-	variables: {
-		zoneTag: CLOUDFLARE_ZONE_ID,
-		filter: {
-			datetime_geq: new Date(Date.now() - (60 * 60 * 10.5 * 1000)).toISOString(),
-			datetime_leq: new Date(Date.now() - (60 * 60 * 8 * 1000)).toISOString(),
-			AND: [
-				{ action_neq: 'allow' },
-				{ action_neq: 'skip' },
-				{ action_neq: 'challenge_solved' },
-				{ action_neq: 'challenge_failed' },
-				{ action_neq: 'challenge_bypassed' },
-				{ action_neq: 'jschallenge_solved' },
-				{ action_neq: 'jschallenge_failed' },
-				{ action_neq: 'jschallenge_bypassed' },
-				{ action_neq: 'managed_challenge_skipped' },
-				{ action_neq: 'managed_challenge_non_interactive_solved' },
-				{ action_neq: 'managed_challenge_interactive_solved' },
-				{ action_neq: 'managed_challenge_bypassed' }
-			]
-		}
-	}
-};
-
-const headers = {
-	'Content-Type': 'application/json',
-	'Authorization': `Bearer ${CLOUDFLARE_API_KEY}`,
-	'X-Auth-Email': CLOUDFLARE_EMAIL
-};
-
-const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp'];
-
-const isImageRequest = loc => imageExtensions.some(ext => loc.toLowerCase().endsWith(ext));
-
-const logToCSV = (timestamp, rayid, ip, endpoint, action, country) => {
-	const logLine = `${timestamp.toISOString()},${rayid},${ip},${endpoint},${action},${country}\n`;
-	fs.appendFileSync(CSV_FILE_PATH, logLine);
-};
-
-const logMessage = (level, message) => {
-	const logLevels = {
-		info: '[INFO]',
-		warn: '[WARN]',
-		error: '[FAIL]'
-	};
-
-	const timestamp = NODE_ENV === 'development' ? `${new Date().toISOString()}: ` : '';
-	console[level](`${logLevels[level]} ${timestamp}${message}`);
-};
 
 const getBlockedIP = async () => {
 	try {
-		const { data } = await axios.post('https://api.cloudflare.com/client/v4/graphql/', PAYLOAD, { headers });
-		logMessage('info', `Fetched ${data.data.viewer.zones[0].firewallEventsAdaptive.length} events from Cloudflare`);
-		return data;
+		const res = await axios.post('https://api.cloudflare.com/client/v4/graphql', PAYLOAD, { headers: headers.CLOUDFLARE });
+		if (!res.data?.data) return log('error', `Failed to retrieve data from Cloudflare (status ${res.status}). Missing permissions? Check your token. The required permission is Zone.Analytics.Read.`);
+
+		log('info', `Fetched ${res.data.data.viewer.zones[0].firewallEventsAdaptive.length} events from Cloudflare`);
+		return res.data;
 	} catch (err) {
 		if (err.response) {
-			logMessage('error', `HTTP Error: ${err.response.status}. Data: ${JSON.stringify(err.response.data, null, 2)}`);
+			log('error', `${err.response.status} HTTP ERROR (api.cloudflare.com)\n${JSON.stringify(err.response.data, null, 2)}`);
 		} else if (err.request) {
-			logMessage('error', 'No response received from Cloudflare.');
+			log('error', 'No response received from Cloudflare');
 		} else {
-			logMessage('error', `Request setup error: ${err.message}`);
+			log('error', `Unknown error with api.cloudflare.com. ${err.message}`);
 		}
+
 		return null;
 	}
 };
 
-const getComment = (it) => `
-    IP: ${it.clientIP} triggered Cloudflare WAF.
-    Action: ${it.action}
-    Source: ${it.source}
-    Client ASN: ${it.clientAsn}
-    Client ASN Description: ${it.clientASNDescription}
-    Client Country: ${it.clientCountryName}
-    HTTP Host: ${it.clientRequestHTTPHost}
-    HTTP Method: ${it.clientRequestHTTPMethodName}
-    HTTP Protocol: ${it.clientRequestHTTPProtocol}
-    HTTP Path: ${it.clientRequestPath}
-    HTTP Query: ${it.clientRequestQuery}
-    Datetime: ${it.datetime}
-    Ray ID: ${it.rayName}
-    Rule ID: ${it.ruleId}
-    User Agent: ${it.userAgent}
-    Report generated by Node-Cloudflare-WAF-To-AbuseIPDB (https://github.com/sefinek24/Node-Cloudflare-WAF-To-AbuseIPDB).
-`;
-
 const reportBadIP = async (it, skippedRayIds, blockedIPs) => {
-	const endpoint = `${it.clientRequestHTTPHost}${it.clientRequestPath}`;
+	const url = `${it.clientRequestHTTPHost}${it.clientRequestPath}`;
 	const country = it.clientCountryName;
 
 	if (isImageRequest(it.clientRequestPath)) {
 		skippedRayIds.add(it.rayName);
-		logToCSV(new Date(), it.rayName, it.clientIP, endpoint, 'Skipped - Image Request', country);
-		logMessage('info', `Skipping IP: ${it.clientIP} for domain: ${it.clientRequestHTTPHost}, Endpoint: ${endpoint} (Image request detected)`);
+		logToCSV(new Date(), it.rayName, it.clientIP, url, 'Skipped - Image Request', country);
+		log('info', `Skipping: ${it.clientIP}; URL: ${url}; (Image request detected)`);
 		return false;
 	}
 
 	try {
-		const url = 'https://api.abuseipdb.com/api/v2/report';
-		const params = {
+		await axios.post('https://api.abuseipdb.com/api/v2/report', {
 			ip: it.clientIP,
 			categories: '19',
-			comment: getComment(it)
-		};
+			comment: generateComment(it)
+		}, { headers: headers.ABUSEIPDB });
 
-		await axios.post(url, params, { headers: { 'Accept': 'application/json', 'Key': ABUSEIPDB_API_KEY } });
-		logToCSV(new Date(), it.rayName, it.clientIP, endpoint, 'Reported', country);
-		logMessage('info', `Successfully reported IP: ${it.clientIP} for domain: ${it.clientRequestHTTPHost}, Endpoint: ${endpoint}`);
+		logToCSV(new Date(), it.rayName, it.clientIP, url, 'Reported', country);
+		log('info', `Reported: ${it.clientIP}; URL: ${url}`);
 		return true;
 	} catch (err) {
 		if (err.response && err.response.status === 429) {
 			blockedIPs.set(it.clientIP, Date.now());
-			logToCSV(new Date(), it.rayName, it.clientIP, endpoint, 'Blocked - 429 Too Many Requests', country);
-			logMessage('warn', `Rate limited (429) while reporting IP: ${it.clientIP}, Domain: ${it.clientRequestHTTPHost}, Endpoint: ${endpoint}. Will retry after 5 hours.`);
+			logToCSV(new Date(), it.rayName, it.clientIP, url, 'Blocked - 429 Too Many Requests', country);
+			log('warn', `Rate limited (429) while reporting: ${it.clientIP}; URL: ${url}; (Will retry after 5 hours)`);
 		} else {
-			logMessage('error', `${err.message} - IP: ${it.clientIP}; Domain: ${it.clientRequestHTTPHost}; Endpoint: ${endpoint}`);
+			log('error', `${err.message} - IP: ${it.clientIP}; Domain: ${it.clientRequestHTTPHost}; URL: ${url}`);
 		}
+
 		return false;
 	}
 };
@@ -184,24 +82,15 @@ const shouldSkipBlockedIP = (ip, blockedIPs) => {
 	return timeSinceLastBlock < BLOCK_TIME_MS;
 };
 
-const readReportedIPs = () => {
-	if (!fs.existsSync(CSV_FILE_PATH)) return [];
-
-	const content = fs.readFileSync(CSV_FILE_PATH, 'utf8');
-	return content.split('\n').slice(1).map(line => {
-		const [timestamp, rayid, ip, domain, action, country] = line.split(',');
-		return { timestamp: new Date(timestamp), rayid, ip, domain, action, country };
-	}).filter(entry => entry.timestamp && entry.rayid && entry.ip);
-};
-
 (async () => {
-	logMessage('info', 'Starting IP reporting process');
+	log('info', 'Starting IP reporting process...');
+
 	const reportedIPs = readReportedIPs();
 	const skippedRayIds = new Set(reportedIPs.filter(ip => ip.action.startsWith('Skipped')).map(ip => ip.rayid));
 	const blockedIPs = new Map(reportedIPs.filter(ip => ip.action.includes('429')).map(ip => [ip.ip, ip.timestamp.getTime()]));
 
 	while (true) {
-		logMessage('info', '===================== New Reporting Cycle =====================');
+		log('info', '===================== New Reporting Cycle =====================');
 
 		const data = await getBlockedIP();
 
@@ -209,24 +98,22 @@ const readReportedIPs = () => {
 			const ipBadList = data.data.viewer.zones[0].firewallEventsAdaptive;
 
 			for (const i of ipBadList) {
-				const endpoint = `${i.clientRequestHTTPHost}${i.clientRequestPath}`;
-				if (skippedRayIds.has(i.rayName) || shouldSkipBlockedIP(i.clientIP, blockedIPs)) {
-					continue;
-				}
+				if (skippedRayIds.has(i.rayName) || shouldSkipBlockedIP(i.clientIP, blockedIPs)) continue;
+
 				if (!exceptedRuleId.has(i.ruleId) && shouldReportDomain(i.clientRequestHTTPHost, reportedIPs)) {
 					const reported = await reportBadIP(i, skippedRayIds, blockedIPs);
-					if (reported) {
-						await new Promise(resolve => setTimeout(resolve, COOLDOWN_MS));
-					}
+					if (reported) await new Promise(resolve => setTimeout(resolve, COOLDOWN_MS));
 				} else if (!skippedRayIds.has(i.rayName)) {
 					skippedRayIds.add(i.rayName);
-					logToCSV(new Date(), i.rayName, i.clientIP, endpoint, 'Skipped - Already Reported', i.clientCountryName);
-					logMessage('info', `Skipping IP: ${i.clientIP} for domain: ${i.clientRequestHTTPHost}, Endpoint: ${endpoint} (Already reported recently)`);
+
+					const url = `${i.clientRequestHTTPHost}${i.clientRequestPath}`;
+					logToCSV(new Date(), i.rayName, i.clientIP, url, 'Skipped - Already Reported', i.clientCountryName);
+					log('info', `Skipping: ${i.clientIP} (domain ${i.clientRequestHTTPHost}); URL: ${url}; (Already reported recently)`);
 				}
 			}
 		}
 
-		logMessage('info', '==================== End of Reporting Cycle ====================');
-		await new Promise(resolve => setTimeout(resolve, NODE_ENV === 'production' ? 2 * 60 * 60 * 1000 : 10 * 1000));
+		log('info', '==================== End of Reporting Cycle ====================');
+		await new Promise(resolve => setTimeout(resolve, process.env.NODE_ENV === 'production' ? 2 * 60 * 60 * 1000 : 10 * 1000));
 	}
 })();
