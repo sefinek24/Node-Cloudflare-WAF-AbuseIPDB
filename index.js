@@ -24,7 +24,7 @@ const fetchBlockedIPs = async () => {
 			throw new Error(`Failed to retrieve data from Cloudflare. Status: ${res.status}`);
 		}
 	} catch (err) {
-		log('error', err.response ? `${err.response.status} HTTP ERROR (Cloudflare)\n${JSON.stringify(err.response.data, null, 2)}` : `Unknown error with Cloudflare: ${err.message}`);
+		log('error', err.response ? `${err.response.status} HTTP ERROR (Cloudflare API)\n${JSON.stringify(err.response.data, null, 2)}` : `Unknown error with Cloudflare API: ${err.message}`);
 		return null;
 	}
 };
