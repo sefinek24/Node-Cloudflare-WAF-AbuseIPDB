@@ -9,7 +9,7 @@ It enables reporting incidents detected by Cloudflare WAF to AbuseIPDB.
 
 
 ## 📃 Information
-If you want to make changes to the script from this repository, please kindly fork it first.
+If you want to make changes to the script from this repository, please kindly [fork](https://github.com/sefinek24/Node-Cloudflare-WAF-AbuseIPDB/fork) it first.
 
 
 ## 🌌 Example Report
