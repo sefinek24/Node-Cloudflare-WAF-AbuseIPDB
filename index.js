@@ -57,7 +57,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 				log('warn', `Rate limited (429) while reporting: ${event.clientIP}; URL: ${url};`);
 				cycleErrorCounts.blocked++;
 			} else {
-				log('error', `Error ${err.response.status} while reporting: ${event.clientIP}; URL: ${url}; Message: ${err.response.data.message}`);
+				log('error', `Error ${err.response.status} while reporting: ${event.clientIP}; URL: ${url}; Message: ${err.response.data}`);
 				cycleErrorCounts.otherErrors++;
 			}
 		} else {
