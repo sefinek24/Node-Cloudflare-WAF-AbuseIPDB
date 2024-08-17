@@ -12,6 +12,7 @@ const log = require('./scripts/log.js');
 const COOLDOWN_MS = 2000;
 const REPORTED_IP_COOLDOWN_MS = 7 * 60 * 60 * 1000;
 const MAX_URL_LENGTH = 2000;
+const MAIN_DELAY = process.env.NODE_ENV === 'production' ? 2 * 60 * 60 * 1000 : 10 * 1000;
 
 const fetchBlockedIPs = async () => {
 	try {
@@ -30,7 +31,7 @@ const fetchBlockedIPs = async () => {
 };
 
 const isIPReportedRecently = (ip, reportedIPs) => {
-	const lastReport = reportedIPs.find(entry => entry.ip === ip && entry.action === 'Reported');
+	const lastReport = reportedIPs.find(entry => entry.ip === ip && (entry.action === 'Reported' || entry.action.startsWith('Failed')));
 	if (!lastReport) return false;
 
 	const lastTimestamp = new Date(lastReport.timestamp).getTime();
@@ -41,7 +42,7 @@ const isIPReportedRecently = (ip, reportedIPs) => {
 
 const reportIP = async (event, url, country, cycleErrorCounts) => {
 	if (!url) {
-		logToCSV(new Date(), event.rayName, event.clientIP, url, 'Failed - URL too long', country);
+		logToCSV(new Date(), event.rayName, event.clientIP, url, 'Failed - Missing URL', country);
 		log('fail', `Error while reporting: ${event.clientIP}; URL: ${url}; (Missing URL)`);
 		return false;
 	}
@@ -66,8 +67,8 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 	} catch (err) {
 		if (err.response) {
 			if (err.response.status === 429) {
-				logToCSV(new Date(), event.rayName, event.clientIP, url, 'Blocked - 429 Too Many Requests', country);
-				log('warn', `Rate limited (429) while reporting: ${event.clientIP}; URL: ${url};`);
+				logToCSV(new Date(), event.rayName, event.clientIP, url, 'Failed - 429 Too Many Requests', country);
+				log('fail', `Rate limited (429) while reporting: ${event.clientIP}; URL: ${url};`);
 				cycleErrorCounts.blocked++;
 			} else {
 				log('fail', `Error ${err.response.status} while reporting: ${event.clientIP}; URL: ${url}; (${err.response.data})`);
@@ -83,13 +84,14 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 
 (async () => {
 	log('info', 'Starting IP reporting process...');
+	let cycleId = 1;
 
 	while (true) {
 		log('info', '===================== New Reporting Cycle =====================');
 
 		const blockedIPEvents = await fetchBlockedIPs();
 		if (!blockedIPEvents) {
-			log('warn', 'No events fetched, skipping cycle...');
+			log('fail', 'No events fetched, skipping cycle...');
 			continue;
 		}
 
@@ -105,7 +107,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 			const country = event.clientCountryName;
 
 			if (isIPReportedRecently(ip, reportedIPs)) {
-				log('info', `IP ${ip} was reported recently. Skipping...`);
+				log('info', `IP ${ip} was reported or rate-limited recently. Skipping...`);
 				cycleSkippedCount++;
 				continue;
 			}
@@ -115,7 +117,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 				if (!wasImageRequestLogged(ip, reportedIPs)) {
 					logToCSV(new Date(), event.rayName, ip, url, 'Skipped - Image Request', country);
 					if (!imageRequestLogged) {
-						log('info', 'Skipping image requests in this cycle.');
+						log('info', 'Skipping image requests in this cycle...');
 						imageRequestLogged = true;
 					}
 				}
@@ -130,7 +132,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 			}
 		}
 
-		log('info', 'Cycle Summary:');
+		log('info', `Cycle Summary [${cycleId}]:`);
 		log('info', `- Total IPs processed: ${cycleProcessedCount}`);
 		log('info', `- Reported IPs: ${cycleReportedCount}`);
 		log('info', `- Skipped IPs: ${cycleSkippedCount}`);
@@ -140,8 +142,8 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 		log('info', `- Other errors: ${cycleErrorCounts.otherErrors}`);
 		log('info', '==================== End of Reporting Cycle ====================');
 
-		const delay = process.env.NODE_ENV === 'production' ? 2 * 60 * 60 * 1000 : 10 * 1000;
-		log('info', `Waiting ${formatDelay(delay)}...`);
-		await new Promise(resolve => setTimeout(resolve, delay));
+		log('info', `Waiting ${formatDelay(MAIN_DELAY)}...`);
+		cycleId++;
+		await new Promise(resolve => setTimeout(resolve, MAIN_DELAY));
 	}
 })();
