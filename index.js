@@ -10,8 +10,8 @@ const formatDelay = require('./scripts/formatDelay.js');
 const log = require('./scripts/log.js');
 
 const COOLDOWN_MS = 2000;
-const BLOCK_TIME_MS = 5 * 60 * 60 * 1000; // 5h
-const REPORTED_IP_COOLDOWN_MS = 7 * 60 * 60 * 1000; // 7h
+const BLOCK_TIME_MS = 5 * 60 * 60 * 1000;
+const REPORTED_IP_COOLDOWN_MS = 7 * 60 * 60 * 1000;
 
 const fetchBlockedIPs = async () => {
 	try {
@@ -29,14 +29,14 @@ const fetchBlockedIPs = async () => {
 	}
 };
 
-const isIPBlockedRecently = (ip, reportedIPs) => {
-	const lastBlock = reportedIPs.find(entry => entry.ip === ip && entry.action.includes('429'));
-	return lastBlock && (Date.now() - new Date(lastBlock.timestamp).getTime()) < BLOCK_TIME_MS;
-};
+const isIPBlockedOrReportedRecently = (ip, reportedIPs) => {
+	const lastReportOrBlock = reportedIPs.find(entry => entry.ip === ip);
+	if (!lastReportOrBlock) return false;
 
-const isIPReportedRecently = (ip, reportedIPs) => {
-	const lastReport = reportedIPs.find(entry => entry.ip === ip && entry.action === 'Reported');
-	return lastReport && (Date.now() - new Date(lastReport.timestamp).getTime()) < REPORTED_IP_COOLDOWN_MS;
+	const lastTimestamp = new Date(lastReportOrBlock.timestamp).getTime();
+	const currentTime = Date.now();
+
+	return (currentTime - lastTimestamp) < REPORTED_IP_COOLDOWN_MS;
 };
 
 const reportIP = async (event, url, country, cycleErrorCounts) => {
@@ -92,7 +92,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 			const url = `${event.clientRequestHTTPHost}${event.clientRequestPath}`;
 			const country = event.clientCountryName;
 
-			if (isIPReportedRecently(ip, reportedIPs) || isIPBlockedRecently(ip, reportedIPs)) {
+			if (isIPBlockedOrReportedRecently(ip, reportedIPs)) {
 				cycleSkippedCount++;
 				continue;
 			}
