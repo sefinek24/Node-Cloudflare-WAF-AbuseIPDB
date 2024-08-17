@@ -11,6 +11,7 @@ const log = require('./scripts/log.js');
 
 const COOLDOWN_MS = 2000;
 const REPORTED_IP_COOLDOWN_MS = 7 * 60 * 60 * 1000;
+const MAX_URL_LENGTH = 2000;
 
 const fetchBlockedIPs = async () => {
 	try {
@@ -39,6 +40,18 @@ const isIPReportedRecently = (ip, reportedIPs) => {
 };
 
 const reportIP = async (event, url, country, cycleErrorCounts) => {
+	if (!url) {
+		logToCSV(new Date(), event.rayName, event.clientIP, url, 'Failed - URL too long', country);
+		log('fail', `Error while reporting: ${event.clientIP}; URL: ${url}; (Missing URL)`);
+		return false;
+	}
+
+	if (url.length > MAX_URL_LENGTH) {
+		logToCSV(new Date(), event.rayName, event.clientIP, url, 'Failed - URL too long', country);
+		log('fail', `Error 422 while reporting: ${event.clientIP}; URL: ${url}; (URL too long)`);
+		return false;
+	}
+
 	try {
 		await axios.post('https://api.abuseipdb.com/api/v2/report', {
 			ip: event.clientIP,
@@ -57,7 +70,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 				log('warn', `Rate limited (429) while reporting: ${event.clientIP}; URL: ${url};`);
 				cycleErrorCounts.blocked++;
 			} else {
-				log('error', `Error ${err.response.status} while reporting: ${event.clientIP}; URL: ${url}; Message: ${err.response.data}`);
+				log('fail', `Error ${err.response.status} while reporting: ${event.clientIP}; URL: ${url}; (${err.response.data})`);
 				cycleErrorCounts.otherErrors++;
 			}
 		} else {
