@@ -49,6 +49,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 
 		logToCSV(new Date(), event.rayName, event.clientIP, url, 'Reported', country);
 		log('info', `Reported: ${event.clientIP}; URL: ${url}`);
+
 		return true;
 	} catch (err) {
 		if (err.response) {
@@ -74,16 +75,16 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 	while (true) {
 		log('info', '===================== New Reporting Cycle =====================');
 
-		const reportedIPs = readReportedIPs();
-		let cycleImageSkippedCount = 0, cycleProcessedCount = 0, cycleReportedCount = 0, cycleSkippedCount = 0;
-		const cycleErrorCounts = { blocked: 0, noResponse: 0, otherErrors: 0 };
-		let imageRequestLogged = false;
-
 		const blockedIPEvents = await fetchBlockedIPs();
 		if (!blockedIPEvents) {
 			log('warn', 'No events fetched, skipping cycle...');
 			continue;
 		}
+
+		const reportedIPs = readReportedIPs();
+		let cycleImageSkippedCount = 0, cycleProcessedCount = 0, cycleReportedCount = 0, cycleSkippedCount = 0;
+		const cycleErrorCounts = { blocked: 0, noResponse: 0, otherErrors: 0 };
+		let imageRequestLogged = false;
 
 		for (const event of blockedIPEvents) {
 			cycleProcessedCount++;
@@ -105,6 +106,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 						imageRequestLogged = true;
 					}
 				}
+
 				continue;
 			}
 
