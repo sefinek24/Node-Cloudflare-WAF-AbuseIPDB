@@ -2,7 +2,7 @@ module.exports = it => {
 	const fields = [
 		{ label: 'Action taken', value: it.action?.toUpperCase() },
 		{ label: 'ASN', value: `${it.clientAsn} (${it.clientASNDescription})` },
-		{ label: 'HTTP protocol', value: `${it.clientRequestHTTPProtocol} (method ${it.clientRequestHTTPMethodName})` },
+		{ label: 'Protocol', value: `${it.clientRequestHTTPProtocol} (method ${it.clientRequestHTTPMethodName})` },
 		{ label: 'Domain', value: it.clientRequestHTTPHost },
 		{ label: 'Endpoint', value: it.clientRequestPath },
 		{ label: 'Query', value: it.clientRequestQuery },
