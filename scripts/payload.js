@@ -1,5 +1,4 @@
-module.exports = {
-	query: `query ListFirewallEvents($zoneTag: string, $filter: FirewallEventsAdaptiveFilter_InputObject) {
+const query = `query ListFirewallEvents($zoneTag: string, $filter: FirewallEventsAdaptiveFilter_InputObject) {
         viewer {
             zones(filter: { zoneTag: $zoneTag }) {
                 firewallEventsAdaptive(
@@ -25,8 +24,10 @@ module.exports = {
                 }
             }
         }
-    }`,
-	variables: {
+    }`;
+
+module.exports = () => {
+	const variables = {
 		zoneTag: process.env.CLOUDFLARE_ZONE_ID,
 		filter: {
 			datetime_geq: new Date(Date.now() - (60 * 60 * 10.5 * 1000)).toISOString(),
@@ -46,5 +47,7 @@ module.exports = {
 				{ action_neq: 'managed_challenge_bypassed' }
 			]
 		}
-	}
+	};
+
+	return { query, variables };
 };

@@ -15,13 +15,13 @@ const REPORTED_IP_COOLDOWN_MS = 7 * 60 * 60 * 1000; // 7h
 
 const fetchBlockedIPs = async () => {
 	try {
-		const response = await axios.post('https://api.cloudflare.com/client/v4/graphql', PAYLOAD, { headers: headers.CLOUDFLARE });
-		if (response.data?.data) {
-			const events = response.data.data.viewer.zones[0].firewallEventsAdaptive;
+		const res = await axios.post('https://api.cloudflare.com/client/v4/graphql', PAYLOAD(), { headers: headers.CLOUDFLARE });
+		if (res.data?.data) {
+			const events = res.data.data.viewer.zones[0].firewallEventsAdaptive;
 			log('info', `Fetched ${events.length} events from Cloudflare`);
 			return events;
 		} else {
-			throw new Error(`Failed to retrieve data from Cloudflare. Status: ${response.status}`);
+			throw new Error(`Failed to retrieve data from Cloudflare. Status: ${res.status}`);
 		}
 	} catch (err) {
 		log('error', err.response ? `${err.response.status} HTTP ERROR (Cloudflare)\n${JSON.stringify(err.response.data, null, 2)}` : `Unknown error with Cloudflare: ${err.message}`);
