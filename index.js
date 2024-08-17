@@ -10,7 +10,6 @@ const formatDelay = require('./scripts/formatDelay.js');
 const log = require('./scripts/log.js');
 
 const COOLDOWN_MS = 2000;
-const BLOCK_TIME_MS = 5 * 60 * 60 * 1000;
 const REPORTED_IP_COOLDOWN_MS = 7 * 60 * 60 * 1000;
 
 const fetchBlockedIPs = async () => {
@@ -29,11 +28,11 @@ const fetchBlockedIPs = async () => {
 	}
 };
 
-const isIPBlockedOrReportedRecently = (ip, reportedIPs) => {
-	const lastReportOrBlock = reportedIPs.find(entry => entry.ip === ip);
-	if (!lastReportOrBlock) return false;
+const isIPReportedRecently = (ip, reportedIPs) => {
+	const lastReport = reportedIPs.find(entry => entry.ip === ip && entry.action === 'Reported');
+	if (!lastReport) return false;
 
-	const lastTimestamp = new Date(lastReportOrBlock.timestamp).getTime();
+	const lastTimestamp = new Date(lastReport.timestamp).getTime();
 	const currentTime = Date.now();
 
 	return (currentTime - lastTimestamp) < REPORTED_IP_COOLDOWN_MS;
@@ -55,7 +54,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 		if (err.response) {
 			if (err.response.status === 429) {
 				logToCSV(new Date(), event.rayName, event.clientIP, url, 'Blocked - 429 Too Many Requests', country);
-				log('warn', `Rate limited (429) while reporting: ${event.clientIP}; URL: ${url}; (Will retry after 5 hours)`);
+				log('warn', `Rate limited (429) while reporting: ${event.clientIP}; URL: ${url};`);
 				cycleErrorCounts.blocked++;
 			} else {
 				log('error', `Error ${err.response.status} while reporting: ${event.clientIP}; URL: ${url}; Message: ${err.response.data.message}`);
@@ -92,7 +91,8 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 			const url = `${event.clientRequestHTTPHost}${event.clientRequestPath}`;
 			const country = event.clientCountryName;
 
-			if (isIPBlockedOrReportedRecently(ip, reportedIPs)) {
+			if (isIPReportedRecently(ip, reportedIPs)) {
+				log('info', `IP ${ip} was reported recently. Skipping...`);
 				cycleSkippedCount++;
 				continue;
 			}
