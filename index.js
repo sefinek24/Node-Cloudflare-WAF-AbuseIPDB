@@ -43,13 +43,13 @@ const isIPReportedRecently = (ip, reportedIPs) => {
 const reportIP = async (event, url, country, cycleErrorCounts) => {
 	if (!url) {
 		logToCSV(new Date(), event.rayName, event.clientIP, url, 'Failed - Missing URL', country);
-		log('warn', `Error while reporting: ${event.clientIP}; URL: ${url}; (Missing URL)`);
+		log('warn', `Error while reporting: ${event.clientIP}; URI: ${url}; (Missing URL)`);
 		return false;
 	}
 
 	if (url.length > MAX_URL_LENGTH) {
 		logToCSV(new Date(), event.rayName, event.clientIP, url, 'Failed - URL too long', country);
-		log('warn', `Error 422 while reporting: ${event.clientIP}; URL: ${url}; (URL too long)`);
+		log('warn', `Error 422 while reporting: ${event.clientIP}; URI: ${url}; (URL too long)`);
 		return false;
 	}
 
@@ -61,21 +61,21 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 		}, { headers: headers.ABUSEIPDB });
 
 		logToCSV(new Date(), event.rayName, event.clientIP, url, 'Reported', country);
-		log('info', `Reported: ${event.clientIP}; URL: ${url}`);
+		log('info', `Reported: ${event.clientIP}; URI: ${url}`);
 
 		return true;
 	} catch (err) {
 		if (err.response) {
 			if (err.response.status === 429) {
 				logToCSV(new Date(), event.rayName, event.clientIP, url, 'Failed - 429 Too Many Requests', country);
-				log('warn', `Rate limited (429) while reporting: ${event.clientIP}; URL: ${url};`);
+				log('warn', `Rate limited (429) while reporting: ${event.clientIP}; URI: ${url};`);
 				cycleErrorCounts.blocked++;
 			} else {
-				log('warn', `Error ${err.response.status} while reporting: ${event.clientIP}; URL: ${url}; (${err.response.data})`);
+				log('warn', `Error ${err.response.status} while reporting: ${event.clientIP}; URI: ${url}; (${err.response.data})`);
 				cycleErrorCounts.otherErrors++;
 			}
 		} else {
-			log('error', `No response from AbuseIPDB while reporting: ${event.clientIP}; URL: ${url}`);
+			log('error', `No response from AbuseIPDB while reporting: ${event.clientIP}; URI: ${url}`);
 			cycleErrorCounts.noResponse++;
 		}
 		return false;
