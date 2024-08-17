@@ -6,6 +6,7 @@ It enables reporting incidents detected by Cloudflare WAF to AbuseIPDB.
 ## 🛠️ Prerequisites
 - Node.js
 - npm (Node Package Manager)
+- PM2 (optional)
 
 
 ## 📃 Information
