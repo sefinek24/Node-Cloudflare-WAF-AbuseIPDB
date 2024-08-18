@@ -42,13 +42,13 @@ const isIPReportedRecently = (ip, reportedIPs) => {
 
 const reportIP = async (event, url, country, cycleErrorCounts) => {
 	if (!url) {
-		logToCSV(new Date(), event.rayName, event.clientIP, url, 'Failed - Missing URL', country);
+		logToCSV(event.rayName, event.clientIP, url, 'Failed - Missing URL', country);
 		log('warn', `Error while reporting: ${event.clientIP}; URI: ${url}; (Missing URL)`);
 		return false;
 	}
 
 	if (url.length > MAX_URL_LENGTH) {
-		logToCSV(new Date(), event.rayName, event.clientIP, url, 'Failed - URL too long', country);
+		logToCSV(event.rayName, event.clientIP, url, 'Failed - URL too long', country);
 		log('warn', `Error 422 while reporting: ${event.clientIP}; URI: ${url}; (URL too long)`);
 		return false;
 	}
@@ -60,18 +60,18 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 			comment: generateComment(event)
 		}, { headers: headers.ABUSEIPDB });
 
-		logToCSV(new Date(), event.rayName, event.clientIP, url, 'Reported', country);
+		logToCSV(event.rayName, event.clientIP, url, 'Reported', country);
 		log('info', `Reported: ${event.clientIP}; URI: ${url}`);
 
 		return true;
 	} catch (err) {
 		if (err.response) {
 			if (err.response.status === 429) {
-				logToCSV(new Date(), event.rayName, event.clientIP, url, 'Failed - 429 Too Many Requests', country);
-				log('warn', `Rate limited (429) while reporting: ${event.clientIP}; URI: ${url};`);
+				logToCSV(event.rayName, event.clientIP, url, 'Failed - 429 Too Many Requests', country);
+				log('info', `Rate limited (429) while reporting: ${event.clientIP}; URI: ${url};`);
 				cycleErrorCounts.blocked++;
 			} else {
-				log('warn', `Error ${err.response.status} while reporting: ${event.clientIP}; URI: ${url}; (${err.response.data})`);
+				log('error', `Error ${err.response.status} while reporting: ${event.clientIP}; URI: ${url}; (${err.response.data})`);
 				cycleErrorCounts.otherErrors++;
 			}
 		} else {
@@ -115,11 +115,11 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 			if (isImageRequest(event.clientRequestPath)) {
 				cycleImageSkippedCount++;
 				if (!wasImageRequestLogged(ip, reportedIPs)) {
-					logToCSV(new Date(), event.rayName, ip, url, 'Skipped - Image Request', country);
-					if (!imageRequestLogged) {
-						log('info', 'Skipping image requests in this cycle...');
-						imageRequestLogged = true;
-					}
+					logToCSV(event.rayName, ip, url, 'Skipped - Image Request', country);
+
+					if (imageRequestLogged) return;
+					log('info', 'Skipping image requests in this cycle...');
+					imageRequestLogged = true;
 				}
 
 				continue;

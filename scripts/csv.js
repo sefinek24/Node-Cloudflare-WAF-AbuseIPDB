@@ -16,9 +16,9 @@ const checkCSVSize = () => {
 	}
 };
 
-const logToCSV = (timestamp, rayid, ip, endpoint, action, country) => {
+const logToCSV = (rayId, ip, endpoint, action, country) => {
 	checkCSVSize();
-	const logLine = `${timestamp.toISOString()},${rayid},${ip},${endpoint},${action},${country}\n`;
+	const logLine = `${new Date().toISOString()},${rayId},${ip},${endpoint},${action},${country}\n`;
 	fs.appendFileSync(CSV_FILE_PATH, logLine);
 };
 
