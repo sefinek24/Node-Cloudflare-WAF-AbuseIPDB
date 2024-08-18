@@ -12,7 +12,7 @@ const log = require('./scripts/log.js');
 const COOLDOWN_MS = 2000;
 const REPORTED_IP_COOLDOWN_MS = 7 * 60 * 60 * 1000;
 const MAX_URL_LENGTH = 2000;
-const MAIN_DELAY = process.env.NODE_ENV === 'production' ? 2 * 60 * 60 * 1000 : 10 * 1000;
+const MAIN_DELAY = process.env.NODE_ENV === 'production' ? 4 * 60 * 60 * 1000 : 8 * 1000;
 
 const fetchBlockedIPs = async () => {
 	try {
