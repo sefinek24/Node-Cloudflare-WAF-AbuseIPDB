@@ -22,10 +22,11 @@ const fetchBlockedIPs = async () => {
 			log('info', `Fetched ${events.length} events from Cloudflare`);
 			return events;
 		} else {
+			console.log(res.data?.errors);
 			throw new Error(`Failed to retrieve data from Cloudflare. Status: ${res.status}`);
 		}
 	} catch (err) {
-		log('error', err.response ? `${err.response.status} HTTP ERROR (Cloudflare API)\n${JSON.stringify(err.response.data, null, 2)}` : `Unknown error with Cloudflare API: ${err.message}`);
+		log('error', err.response?.data ? `${err.response.status} HTTP ERROR (Cloudflare API)\n${JSON.stringify(err.response.data, null, 2)}` : `Unknown error with Cloudflare API: ${err.message}`);
 		return null;
 	}
 };
