@@ -83,6 +83,12 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 };
 
 (async () => {
+	try {
+		process.send('ready');
+	} catch (err) {
+		log('info', `Failed to send ready signal to parent process. ${err.message}`);
+	}
+
 	log('info', 'Starting IP reporting process...');
 	let cycleId = 1;
 
@@ -117,7 +123,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 				if (!wasImageRequestLogged(ip, reportedIPs)) {
 					logToCSV(event.rayName, ip, url, 'Skipped - Image Request', country);
 
-					if (imageRequestLogged) return;
+					if (imageRequestLogged) break;
 					log('info', 'Skipping image requests in this cycle...');
 					imageRequestLogged = true;
 				}
