@@ -5,6 +5,8 @@ In simple terms, it enables the reporting of incidents detected by Cloudflare WA
 If you're looking for **effective WAF Expressions**, you're in the right place!  
 Take a look at [sefinek24/Cloudflare-WAF-Expressions](https://github.com/sefinek24/Cloudflare-WAF-Expressions).
 
+If you like this repository or find it useful, I would greatly appreciate it if you could give it a star ⭐. Thanks a lot! :)
+
 ## 🛠️ Prerequisites
 - [Node.js](https://nodejs.org)
 - [npm](https://www.npmjs.com) (Node Package Manager)
