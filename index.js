@@ -124,7 +124,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 				if (!wasImageRequestLogged(ip, reportedIPs)) {
 					logToCSV(event.rayName, ip, url, 'Skipped - Image Request', country);
 
-					if (imageRequestLogged) break;
+					if (imageRequestLogged) continue;
 					log('info', 'Skipping image requests in this cycle...');
 					imageRequestLogged = true;
 				}
