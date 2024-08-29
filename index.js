@@ -84,10 +84,12 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 };
 
 (async () => {
-	try {
-		process.send('ready');
-	} catch (err) {
-		log('info', `Failed to send ready signal to parent process. ${err.message}`);
+	if (process.env.NODE_ENV === 'production') {
+		try {
+			process.send('ready');
+		} catch (err) {
+			log('info', `Failed to send ready signal to parent process. ${err.message}`);
+		}
 	}
 
 	log('info', 'Starting IP reporting process...');
