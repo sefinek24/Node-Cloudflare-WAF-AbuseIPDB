@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 const axios = require('axios');
 const PAYLOAD = require('./scripts/payload.js');
 const generateComment = require('./scripts/generateComment.js');
@@ -7,6 +8,7 @@ const headers = require('./scripts/headers.js');
 const { logToCSV, readReportedIPs, wasImageRequestLogged } = require('./scripts/csv.js');
 const formatDelay = require('./scripts/formatDelay.js');
 const log = require('./scripts/log.js');
+const { version } = require('./package.json');
 
 const MAIN_DELAY = process.env.NODE_ENV === 'production'
 	? 3 * 60 * 60 * 1000
@@ -96,7 +98,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 	let cycleId = 1;
 
 	while (true) {
-		log('info', '===================== New Reporting Cycle =====================');
+		log('info', `===================== New Reporting Cycle (v${version}) =====================`);
 
 		const blockedIPEvents = await fetchBlockedIPs();
 		if (!blockedIPEvents) {
