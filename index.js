@@ -35,7 +35,14 @@ const fetchBlockedIPs = async () => {
 
 const isIPReportedRecently = (ip, reportedIPs) => {
 	const lastReport = reportedIPs.find(entry => entry.ip === ip && (entry.action === 'Reported' || entry.action.startsWith('Failed')));
-	return lastReport ? (Date.now() - new Date(lastReport.timestamp).getTime()) < REPORTED_IP_COOLDOWN_MS : false;
+	if (lastReport) {
+		const lastTimestamp = new Date(lastReport.timestamp).getTime();
+		const currentTime = Date.now();
+		const timeDifference = currentTime - lastTimestamp;
+		if (timeDifference < REPORTED_IP_COOLDOWN_MS) return { recentlyReported: true, timeDifference };
+	}
+
+	return { recentlyReported: false };
 };
 
 const reportIP = async (event, url, country, cycleErrorCounts) => {
@@ -108,8 +115,12 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 			const url = `${event.clientRequestHTTPHost}${event.clientRequestPath}`;
 			const country = event.clientCountryName;
 
-			if (isIPReportedRecently(ip, reportedIPs)) {
-				log('info', `IP ${ip} was reported or rate-limited recently. Skipping...`);
+			const { recentlyReported, timeDifference } = isIPReportedRecently(ip, reportedIPs);
+			if (recentlyReported) {
+				const hoursAgo = Math.floor(timeDifference / (1000 * 60 * 60));
+				const minutesAgo = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+				const secondsAgo = Math.floor((timeDifference % (1000 * 60)) / 1000);
+				log('info', `${ip} was reported or rate-limited ${hoursAgo}h ${minutesAgo}m ${secondsAgo}s ago. Skipping...`);
 				cycleSkippedCount++;
 				continue;
 			}
@@ -135,8 +146,8 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 		}
 
 		log('info', `Cycle Summary [${cycleId}]:`);
-		log('info', `- Total IPs processed: ${cycleProcessedCount}`);
 		log('info', `- Reported IPs: ${cycleReportedCount}`);
+		log('info', `- Total IPs processed: ${cycleProcessedCount}`);
 		log('info', `- Skipped IPs: ${cycleSkippedCount}`);
 		log('info', `- Skipped due to Image Requests: ${cycleImageSkippedCount}`);
 		log('info', `- 429 Too Many Requests: ${cycleErrorCounts.blocked}`);
