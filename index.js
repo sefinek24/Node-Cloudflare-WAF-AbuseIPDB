@@ -1,5 +1,4 @@
 require('dotenv').config();
-
 const axios = require('axios');
 const PAYLOAD = require('./scripts/payload.js');
 const generateComment = require('./scripts/generateComment.js');
@@ -9,7 +8,10 @@ const { logToCSV, readReportedIPs, wasImageRequestLogged } = require('./scripts/
 const formatDelay = require('./scripts/formatDelay.js');
 const log = require('./scripts/log.js');
 
-const MAIN_DELAY = process.env.NODE_ENV === 'production' ? 4 * 60 * 60 * 1000 : 8 * 1000;
+const MAIN_DELAY = process.env.NODE_ENV === 'production'
+	? 4 * 60 * 60 * 1000
+	: 8 * 1000;
+
 const REPORTED_IP_COOLDOWN_MS = 7 * 60 * 60 * 1000;
 const COOLDOWN_MS = 2000;
 const MAX_URL_LENGTH = 2000;
@@ -22,8 +24,8 @@ const fetchBlockedIPs = async () => {
 			log('info', `Fetched ${events.length} events from Cloudflare`);
 			return events;
 		} else {
-			console.log(res.data?.errors);
-			throw new Error(`Failed to retrieve data from Cloudflare. Status: ${res.status}`);
+			log('error', `Failed to retrieve data from Cloudflare. Status: ${res.status}`, res.data?.errors);
+			return null;
 		}
 	} catch (err) {
 		log('error', err.response?.data ? `${err.response.status} HTTP ERROR (Cloudflare API)\n${JSON.stringify(err.response.data, null, 2)}` : `Unknown error with Cloudflare API: ${err.message}`);
@@ -33,12 +35,7 @@ const fetchBlockedIPs = async () => {
 
 const isIPReportedRecently = (ip, reportedIPs) => {
 	const lastReport = reportedIPs.find(entry => entry.ip === ip && (entry.action === 'Reported' || entry.action.startsWith('Failed')));
-	if (!lastReport) return false;
-
-	const lastTimestamp = new Date(lastReport.timestamp).getTime();
-	const currentTime = Date.now();
-
-	return (currentTime - lastTimestamp) < REPORTED_IP_COOLDOWN_MS;
+	return lastReport ? (Date.now() - new Date(lastReport.timestamp).getTime()) < REPORTED_IP_COOLDOWN_MS : false;
 };
 
 const reportIP = async (event, url, country, cycleErrorCounts) => {
@@ -66,19 +63,15 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 
 		return true;
 	} catch (err) {
-		if (err.response) {
-			if (err.response.status === 429) {
-				logToCSV(event.rayName, event.clientIP, url, 'Failed - 429 Too Many Requests', country);
-				log('info', `Rate limited (429) while reporting: ${event.clientIP}; URI: ${url};`);
-				cycleErrorCounts.blocked++;
-			} else {
-				log('error', `Error ${err.response.status} while reporting: ${event.clientIP}; URI: ${url}; (${err.response.data})`);
-				cycleErrorCounts.otherErrors++;
-			}
+		if (err.response?.status === 429) {
+			logToCSV(event.rayName, event.clientIP, url, 'Failed - 429 Too Many Requests', country);
+			log('info', `Rate limited (429) while reporting: ${event.clientIP}; URI: ${url};`);
+			cycleErrorCounts.blocked++;
 		} else {
-			log('error', `No response from AbuseIPDB while reporting: ${event.clientIP}; URI: ${url}`);
-			cycleErrorCounts.noResponse++;
+			log('error', `Error ${err.response?.status} while reporting: ${event.clientIP}; URI: ${url}; (${err.response?.data})`);
+			cycleErrorCounts.otherErrors++;
 		}
+
 		return false;
 	}
 };
