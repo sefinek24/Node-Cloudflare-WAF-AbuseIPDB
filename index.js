@@ -9,7 +9,7 @@ const formatDelay = require('./scripts/formatDelay.js');
 const log = require('./scripts/log.js');
 
 const MAIN_DELAY = process.env.NODE_ENV === 'production'
-	? 4 * 60 * 60 * 1000
+	? 3 * 60 * 60 * 1000
 	: 8 * 1000;
 
 const REPORTED_IP_COOLDOWN_MS = 7 * 60 * 60 * 1000;
