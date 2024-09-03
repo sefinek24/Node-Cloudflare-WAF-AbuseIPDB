@@ -1,4 +1,4 @@
-# 🕵️‍♀️ Cloudflare WAF to AbuseIPDB 🚫
+# 🚫 Cloudflare WAF to AbuseIPDB 🕵️‍♀️
 This project offers an automated script that collects and reports IP addresses that have triggered Cloudflare firewall events.
 In simple terms, it enables the reporting of incidents detected by Cloudflare WAF to the AbuseIPDB database.
 
