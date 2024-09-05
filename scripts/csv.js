@@ -17,15 +17,13 @@ const checkCSVSize = () => {
 };
 
 const escapeCSVValue = value => {
-	if (typeof value === 'string' && value.includes(',')) {
-		return `"${value.replace(/"/g, '""')}"`;
-	}
-	return value;
+	if (typeof value === 'string' && value.includes(',')) return `"${value.replace(/"/g, '""')}"`;
+	return value || '';
 };
 
 const logToCSV = (rayId, ip, hostname, endpoint, useragent, action, country, sefinekAPI) => {
 	checkCSVSize();
-	const logLine = `${new Date().toISOString()},${rayId},${ip},${hostname},${escapeCSVValue(endpoint)},${escapeCSVValue(useragent || '')},${action},${country},${sefinekAPI || false}`;
+	const logLine = `${new Date().toISOString()},${rayId},${ip},${hostname},${escapeCSVValue(endpoint)},${escapeCSVValue(useragent)},${action},${country || 'N/A'},${sefinekAPI || false}`;
 	fs.appendFileSync(CSV_FILE_PATH, logLine + '\n');
 };
 
@@ -38,9 +36,22 @@ const readReportedIPs = () => {
 		.slice(1)
 		.filter(line => line.trim() !== '')
 		.map(line => {
-			const [timestamp, rayId, ip, hostname, endpoint, useragent, action, country, sefinekAPI] = line.split(',');
-			return { timestamp: new Date(timestamp), rayId, ip, hostname, endpoint, useragent, action, country, sefinekAPI };
-		});
+			const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+			if (!parts || parts.length < 9) return null;
+
+			return {
+				timestamp: new Date(parts[0]),
+				rayId: parts[1],
+				ip: parts[2],
+				hostname: parts[3],
+				endpoint: parts[4],
+				useragent: parts[5],
+				action: parts[6],
+				country: parts[7],
+				sefinekAPI: parts[8]
+			};
+		})
+		.filter(item => item !== null);
 };
 
 const updateSefinekAPIInCSV = (rayId, reportedToSefinekAPI) => {
@@ -53,11 +64,10 @@ const updateSefinekAPIInCSV = (rayId, reportedToSefinekAPI) => {
 	const lines = content.split('\n');
 
 	const updatedLines = lines.map(line => {
-		if (line.includes(rayId)) {
-			const [timestamp, rayIdExisting, ip, hostname, endpoint, useragent, action, country] = line.split(',');
-			if (rayIdExisting === rayId) {
-				return `${timestamp},${rayId},${ip},${hostname},${escapeCSVValue(endpoint)},${escapeCSVValue(useragent)},${action},${country},${reportedToSefinekAPI}`;
-			}
+		const parts = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/g);
+		if (parts.length >= 9 && parts[1] === rayId) {
+			parts[8] = reportedToSefinekAPI;
+			return parts.join(',');
 		}
 		return line;
 	});
