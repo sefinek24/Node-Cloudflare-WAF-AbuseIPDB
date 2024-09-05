@@ -1,14 +1,14 @@
 require('dotenv').config();
 
-const axios = require('axios');
+const { axios, moduleVersion } = require('./services/axios.js');
 const PAYLOAD = require('./scripts/payload.js');
 const generateComment = require('./scripts/generateComment.js');
 const isImageRequest = require('./scripts/isImageRequest.js');
 const headers = require('./scripts/headers.js');
 const { logToCSV, readReportedIPs, wasImageRequestLogged } = require('./scripts/csv.js');
 const formatDelay = require('./scripts/formatDelay.js');
+const clientIp = require('./scripts/clientIp.js');
 const log = require('./scripts/log.js');
-const { version } = require('./package.json');
 
 const MAIN_DELAY = process.env.NODE_ENV === 'production'
 	? 3 * 60 * 60 * 1000
@@ -20,13 +20,13 @@ const MAX_URL_LENGTH = 2000;
 
 const fetchBlockedIPs = async () => {
 	try {
-		const res = await axios.post('https://api.cloudflare.com/client/v4/graphql', PAYLOAD(), { headers: headers.CLOUDFLARE });
-		if (res.data?.data) {
-			const events = res.data.data.viewer.zones[0].firewallEventsAdaptive;
+		const { data, status } = await axios.post('https://api.cloudflare.com/client/v4/graphql', PAYLOAD(), { headers: headers.CLOUDFLARE });
+		const events = data?.data?.viewer?.zones[0]?.firewallEventsAdaptive;
+		if (events) {
 			log('info', `Fetched ${events.length} events from Cloudflare`);
 			return events;
 		} else {
-			log('error', `Failed to retrieve data from Cloudflare. Status: ${res.status}`, res.data?.errors);
+			log('error', `Failed to retrieve data from Cloudflare. Status: ${status}`, data?.errors);
 			return null;
 		}
 	} catch (err) {
@@ -51,6 +51,12 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 	if (!url) {
 		logToCSV(event.rayName, event.clientIP, url, 'Failed - Missing URL', country);
 		log('warn', `Missing URL ${event.clientIP}; URI: ${url};`);
+		return false;
+	}
+
+	if (event.clientIP === clientIp.address) {
+		logToCSV(event.rayName, event.clientIP, url, 'Your IP address', country);
+		log('warn', `Your IP address (${event.clientIP}) was unexpectedly received from Cloudflare. URI: ${url}; Ignoring...`);
 		return false;
 	}
 
@@ -94,11 +100,12 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 		}
 	}
 
-	log('info', 'Starting IP reporting process...');
+	log('info', 'Starting, please wait...');
+	await clientIp.fetchIPAddress();
 	let cycleId = 1;
 
 	while (true) {
-		log('info', `===================== New Reporting Cycle (v${version}) =====================`);
+		log('info', `===================== New Reporting Cycle (v${moduleVersion}) =====================`);
 
 		const blockedIPEvents = await fetchBlockedIPs();
 		if (!blockedIPEvents) {
