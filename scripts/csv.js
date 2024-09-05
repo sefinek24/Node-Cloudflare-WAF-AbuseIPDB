@@ -4,7 +4,7 @@ const log = require('./log.js');
 
 const CSV_FILE_PATH = path.join(__dirname, '..', 'reported_ips.csv');
 const MAX_CSV_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB
-const CSV_HEADER = 'Timestamp,RayID,IP,Endpoint,Action,Country\n';
+const CSV_HEADER = 'Timestamp,RayID,IP,Hostname,Endpoint,User-Agent,Action,Country,SefinekAPI\n';
 
 if (!fs.existsSync(CSV_FILE_PATH)) fs.writeFileSync(CSV_FILE_PATH, CSV_HEADER);
 
@@ -16,10 +16,17 @@ const checkCSVSize = () => {
 	}
 };
 
-const logToCSV = (rayId, ip, endpoint, action, country) => {
+const escapeCSVValue = value => {
+	if (typeof value === 'string' && value.includes(',')) {
+		return `"${value.replace(/"/g, '""')}"`;
+	}
+	return value;
+};
+
+const logToCSV = (rayId, ip, hostname, endpoint, useragent, action, country, sefinekAPI) => {
 	checkCSVSize();
-	const logLine = `${new Date().toISOString()},${rayId},${ip},${endpoint},${action},${country}\n`;
-	fs.appendFileSync(CSV_FILE_PATH, logLine);
+	const logLine = `${new Date().toISOString()},${rayId},${ip},${hostname},${escapeCSVValue(endpoint)},${escapeCSVValue(useragent || '')},${action},${country},${sefinekAPI || false}`;
+	fs.appendFileSync(CSV_FILE_PATH, logLine + '\n');
 };
 
 const readReportedIPs = () => {
@@ -31,11 +38,33 @@ const readReportedIPs = () => {
 		.slice(1)
 		.filter(line => line.trim() !== '')
 		.map(line => {
-			const [timestamp, rayid, ip, endpoint, action, country] = line.split(',');
-			return { timestamp: new Date(timestamp), rayid, ip, endpoint, action, country };
+			const [timestamp, rayId, ip, hostname, endpoint, useragent, action, country, sefinekAPI] = line.split(',');
+			return { timestamp: new Date(timestamp), rayId, ip, hostname, endpoint, useragent, action, country, sefinekAPI };
 		});
+};
+
+const updateSefinekAPIInCSV = (rayId, reportedToSefinekAPI) => {
+	if (!fs.existsSync(CSV_FILE_PATH)) {
+		log('error', 'CSV file does not exist');
+		return;
+	}
+
+	const content = fs.readFileSync(CSV_FILE_PATH, 'utf8');
+	const lines = content.split('\n');
+
+	const updatedLines = lines.map(line => {
+		if (line.includes(rayId)) {
+			const [timestamp, rayIdExisting, ip, hostname, endpoint, useragent, action, country] = line.split(',');
+			if (rayIdExisting === rayId) {
+				return `${timestamp},${rayId},${ip},${hostname},${escapeCSVValue(endpoint)},${escapeCSVValue(useragent)},${action},${country},${reportedToSefinekAPI}`;
+			}
+		}
+		return line;
+	});
+
+	fs.writeFileSync(CSV_FILE_PATH, updatedLines.join('\n'));
 };
 
 const wasImageRequestLogged = (ip, reportedIPs) => reportedIPs.some(entry => entry.ip === ip && entry.action === 'Skipped - Image Request');
 
-module.exports = { logToCSV, readReportedIPs, wasImageRequestLogged };
+module.exports = { logToCSV, readReportedIPs, updateSefinekAPIInCSV, wasImageRequestLogged };

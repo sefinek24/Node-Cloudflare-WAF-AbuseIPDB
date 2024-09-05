@@ -1,9 +1,10 @@
 require('dotenv').config();
 
 const { axios, moduleVersion } = require('./services/axios.js');
-const { CYCLE_INTERVAL, REPORTED_IP_COOLDOWN_MS, MAX_URL_LENGTH, SUCCESS_COOLDOWN_MS } = require('./config.js');
+const { CYCLE_INTERVAL, REPORTED_IP_COOLDOWN_MS, MAX_URL_LENGTH, SUCCESS_COOLDOWN_MS, IP_REFRESH_INTERVAL, REPORT_TO_SEFINEK_API, SEFINEK_API_SECRET, SEFINEK_API_INTERVAL } = require('./config.js');
 const PAYLOAD = require('./scripts/payload.js');
 const generateComment = require('./scripts/generateComment.js');
+const SefinekAPI = require('./scripts/sefinekAPI.js');
 const isImageRequest = require('./scripts/isImageRequest.js');
 const headers = require('./scripts/headers.js');
 const { logToCSV, readReportedIPs, wasImageRequestLogged } = require('./scripts/csv.js');
@@ -40,22 +41,24 @@ const isIPReportedRecently = (ip, reportedIPs) => {
 	return { recentlyReported: false };
 };
 
-const reportIP = async (event, url, country, cycleErrorCounts) => {
-	if (!url) {
-		logToCSV(event.rayName, event.clientIP, url, 'Failed - Missing URL', country);
-		log('warn', `Missing URL ${event.clientIP}; URI: ${url};`);
+const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErrorCounts) => {
+	const uri = `${hostname}${endpoint}`;
+
+	if (!uri) {
+		logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Failed - Missing URL', country);
+		log('warn', `Missing URL ${event.clientIP}; URI: ${uri};`);
 		return false;
 	}
 
 	if (event.clientIP === clientIp.address) {
-		logToCSV(event.rayName, event.clientIP, url, 'Your IP address', country);
-		log('log', `Your IP address (${event.clientIP}) was unexpectedly received from Cloudflare. URI: ${url}; Ignoring...`);
+		logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Your IP address', country);
+		log('log', `Your IP address (${event.clientIP}) was unexpectedly received from Cloudflare. URI: ${uri}; Ignoring...`);
 		return false;
 	}
 
-	if (url.length > MAX_URL_LENGTH) {
-		logToCSV(event.rayName, event.clientIP, url, 'Failed - URL too long', country);
-		log('log', `URL too long ${event.clientIP}; URI: ${url};`);
+	if (uri.length > MAX_URL_LENGTH) {
+		logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Failed - URL too long', country);
+		log('log', `URL too long ${event.clientIP}; URI: ${uri};`);
 		return false;
 	}
 
@@ -66,17 +69,17 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 			comment: generateComment(event)
 		}, { headers: headers.ABUSEIPDB });
 
-		logToCSV(event.rayName, event.clientIP, url, 'Reported', country);
-		log('info', `Reported ${event.clientIP}; URI: ${url}`);
+		logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Reported', country);
+		log('info', `Reported ${event.clientIP}; URI: ${uri}`);
 
 		return true;
 	} catch (err) {
 		if (err.response?.status === 429) {
-			logToCSV(event.rayName, event.clientIP, url, 'Failed - 429 Too Many Requests', country);
-			log('info', `Rate limited (429) while reporting ${event.clientIP}; URI: ${url};`);
+			logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Failed - 429 Too Many Requests', country);
+			log('info', `Rate limited (429) while reporting ${event.clientIP}; URI: ${uri};`);
 			cycleErrorCounts.blocked++;
 		} else {
-			log('error', `Error ${err.response?.status} while reporting ${event.clientIP}; URI: ${url}; (${err.response?.data})`);
+			log('error', `Error ${err.response?.status} while reporting ${event.clientIP}; URI: ${uri}; (${err.response?.data})`);
 			cycleErrorCounts.otherErrors++;
 		}
 
@@ -96,6 +99,12 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 	log('info', 'Loading data, please wait...');
 	await clientIp.fetchIPAddress();
 
+	// Sefinek API
+	setInterval(async () => {
+		await SefinekAPI();
+	}, SEFINEK_API_INTERVAL);
+
+	// AbuseIPDB
 	let cycleId = 1;
 	while (true) {
 		log('info', `===================== New Reporting Cycle (v${moduleVersion}) =====================`);
@@ -117,7 +126,8 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 		for (const event of blockedIPEvents) {
 			cycleProcessedCount++;
 			const ip = event.clientIP;
-			const url = `${event.clientRequestHTTPHost}${event.clientRequestPath}`;
+			const hostname = event.clientRequestHTTPHost;
+			const endpoint = event.clientRequestPath;
 			const country = event.clientCountryName;
 
 			const { recentlyReported, timeDifference } = isIPReportedRecently(ip, reportedIPs);
@@ -133,7 +143,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 			if (isImageRequest(event.clientRequestPath)) {
 				cycleImageSkippedCount++;
 				if (!wasImageRequestLogged(ip, reportedIPs)) {
-					logToCSV(event.rayName, ip, url, 'Skipped - Image Request', country);
+					logToCSV(event.rayName, ip, hostname, endpoint, null, 'Skipped - Image Request', country);
 
 					if (imageRequestLogged) continue;
 					log('info', 'Skipping image requests in this cycle...');
@@ -143,7 +153,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 				continue;
 			}
 
-			const wasReported = await reportIP(event, url, country, cycleErrorCounts);
+			const wasReported = await reportIP(event, hostname, endpoint, event.userAgent, country, cycleErrorCounts);
 			if (wasReported) {
 				cycleReportedCount++;
 				await new Promise(resolve => setTimeout(resolve, SUCCESS_COOLDOWN_MS));
