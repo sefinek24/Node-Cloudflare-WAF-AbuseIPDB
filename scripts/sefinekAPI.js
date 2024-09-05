@@ -7,8 +7,7 @@ const SEFINEK_API_URL = `${process.env.NODE_ENV === 'production' ? 'https://api.
 module.exports = async () => {
 	const reportedIPs = readReportedIPs().filter(ip => ip.action === 'Reported' && ip.sefinekAPI === 'false');
 	if (reportedIPs.length === 0) {
-		log('info', 'No reported IPs with action "Reported" and SefinekAPI false to send to Sefinek API.');
-		return;
+		return log('info', 'No reported IPs with action "Reported" and SefinekAPI false to send to Sefinek API');
 	}
 
 	const uniqueLogs = reportedIPs.reduce((acc, ip) => {
@@ -19,10 +18,7 @@ module.exports = async () => {
 		return acc;
 	}, { seen: new Set(), logs: [] }).logs;
 
-	if (uniqueLogs.length === 0) {
-		log('info', 'No unique IPs to send.');
-		return;
-	}
+	if (uniqueLogs.length === 0) return log('info', 'No unique IPs to send');
 
 	try {
 		const res = await axios.post(SEFINEK_API_URL, {

@@ -30,7 +30,7 @@ const logToCSV = (rayId, ip, hostname, endpoint, useragent, action, country, sef
 const readReportedIPs = () => {
 	if (!fs.existsSync(CSV_FILE_PATH)) return [];
 
-	const content = fs.readFileSync(CSV_FILE_PATH, 'utf8');
+	const content = fs.readFileSync(CSV_FILE_PATH, 'utf-8');
 	return content
 		.split('\n')
 		.slice(1)
@@ -60,7 +60,7 @@ const updateSefinekAPIInCSV = (rayId, reportedToSefinekAPI) => {
 		return;
 	}
 
-	const content = fs.readFileSync(CSV_FILE_PATH, 'utf8');
+	const content = fs.readFileSync(CSV_FILE_PATH, 'utf-8');
 	const lines = content.split('\n');
 
 	const updatedLines = lines.map(line => {
