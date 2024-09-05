@@ -46,7 +46,7 @@ const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErro
 
 	if (!uri) {
 		logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Failed - Missing URL', country);
-		log('warn', `Missing URL ${event.clientIP}; URI: ${uri};`);
+		log('warn', `Missing URL ${event.clientIP}; URI: ${uri}`);
 		return false;
 	}
 
@@ -58,7 +58,7 @@ const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErro
 
 	if (uri.length > MAX_URL_LENGTH) {
 		logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Failed - URL too long', country);
-		log('log', `URL too long ${event.clientIP}; URI: ${uri};`);
+		log('log', `URL too long ${event.clientIP}; URI: ${uri}`);
 		return false;
 	}
 
@@ -76,7 +76,7 @@ const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErro
 	} catch (err) {
 		if (err.response?.status === 429) {
 			logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Failed - 429 Too Many Requests', country);
-			log('info', `Rate limited (429) while reporting ${event.clientIP}; URI: ${uri};`);
+			log('info', `Rate limited (429) while reporting ${event.clientIP}; URI: ${uri}`);
 			cycleErrorCounts.blocked++;
 		} else {
 			log('error', `Error ${err.response?.status} while reporting ${event.clientIP}; URI: ${uri}; (${err.response?.data})`);
