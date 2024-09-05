@@ -9,14 +9,13 @@ module.exports = async () => {
 	if (reportedIPs.length === 0) return log('info', 'No IPs with action "Reported" and SefinekAPI false to send to Sefinek API');
 
 	const uniqueLogs = reportedIPs.reduce((acc, ip) => {
-		if (!acc.seen.has(ip.ip)) {
-			acc.seen.add(ip.ip);
-			acc.logs.push(ip);
-		}
+		if (acc.seen.has(ip.ip)) return acc;
+		acc.seen.add(ip.ip);
+		acc.logs.push(ip);
 		return acc;
 	}, { seen: new Set(), logs: [] }).logs;
 
-	if (uniqueLogs.length === 0) return log('info', 'No unique IPs to send to Sefinek API');
+	if (!uniqueLogs?.length) return log('info', 'No unique IPs to send to Sefinek API');
 
 	try {
 		const res = await axios.post(SEFINEK_API_URL, {
@@ -28,6 +27,8 @@ module.exports = async () => {
 				action: ip.action,
 				country: ip.country
 			}))
+		}, {
+			headers: { 'Authorization': process.env.SEFINEK_API_SECRET }
 		});
 
 		log('info', `Successfully sent ${res.data.count} logs to Sefinek API. Status: ${res.status}`);
