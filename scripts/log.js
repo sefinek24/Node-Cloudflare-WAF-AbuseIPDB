@@ -1,5 +1,5 @@
 const levels = {
-	info: '[INFO]',
+	log: '[INFO]',
 	warn: '[WARN]',
 	error: '[FAIL]'
 };

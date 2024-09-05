@@ -6,7 +6,7 @@ const SEFINEK_API_URL = process.env.SEFINEK_API_URL || `${process.env.NODE_ENV =
 
 module.exports = async () => {
 	const reportedIPs = readReportedIPs().filter(ip => ip.action === 'Reported' && ip.sefinekAPI === 'false');
-	if (reportedIPs.length === 0) return log('info', 'No IPs with action "Reported" and SefinekAPI false to send to Sefinek API');
+	if (reportedIPs.length === 0) return log('log', 'No IPs with action "Reported" and SefinekAPI false to send to Sefinek API');
 
 	const uniqueLogs = reportedIPs.reduce((acc, ip) => {
 		if (acc.seen.has(ip.ip)) return acc;
@@ -15,7 +15,7 @@ module.exports = async () => {
 		return acc;
 	}, { seen: new Set(), logs: [] }).logs;
 
-	if (!uniqueLogs?.length) return log('info', 'No unique IPs to send to Sefinek API');
+	if (!uniqueLogs?.length) return log('log', 'No unique IPs to send to Sefinek API');
 
 	try {
 		const res = await axios.post(SEFINEK_API_URL, {
@@ -31,7 +31,7 @@ module.exports = async () => {
 			headers: { 'Authorization': process.env.SEFINEK_API_SECRET }
 		});
 
-		log('info', `Successfully sent ${res.data.count} logs to Sefinek API. Status: ${res.status}`);
+		log('log', `Successfully sent ${res.data.count} logs to Sefinek API. Status: ${res.status}`);
 
 		uniqueLogs.forEach(ip => updateSefinekAPIInCSV(ip.rayId, true));
 	} catch (err) {

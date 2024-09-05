@@ -17,7 +17,7 @@ const fetchBlockedIPs = async () => {
 		const { data, status } = await axios.post('https://api.cloudflare.com/client/v4/graphql', PAYLOAD(), { headers: headers.CLOUDFLARE });
 		const events = data?.data?.viewer?.zones[0]?.firewallEventsAdaptive;
 		if (events) {
-			log('info', `Fetched ${events.length} events from Cloudflare`);
+			log('log', `Fetched ${events.length} events from Cloudflare`);
 			return events;
 		} else {
 			log('error', `Failed to retrieve data from Cloudflare. Status: ${status}`, data?.errors);
@@ -70,13 +70,13 @@ const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErro
 		}, { headers: headers.ABUSEIPDB });
 
 		logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Reported', country);
-		log('info', `Reported ${event.clientIP}; URI: ${uri}`);
+		log('log', `Reported ${event.clientIP}; URI: ${uri}`);
 
 		return true;
 	} catch (err) {
 		if (err.response?.status === 429) {
 			logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Failed - 429 Too Many Requests', country);
-			log('info', `Rate limited (429) while reporting ${event.clientIP}; URI: ${uri}`);
+			log('log', `Rate limited (429) while reporting ${event.clientIP}; URI: ${uri}`);
 			cycleErrorCounts.blocked++;
 		} else {
 			log('error', `Error ${err.response?.status} while reporting ${event.clientIP}; URI: ${uri}; (${err.response?.data})`);
@@ -92,11 +92,11 @@ const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErro
 		try {
 			process.send('ready');
 		} catch (err) {
-			log('info', `Failed to send ready signal to parent process. ${err.message}`);
+			log('log', `Failed to send ready signal to parent process. ${err.message}`);
 		}
 	}
 
-	log('info', 'Loading data, please wait...');
+	log('log', 'Loading data, please wait...');
 	await clientIp.fetchIPAddress();
 
 	// Sefinek API
@@ -107,7 +107,7 @@ const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErro
 	// AbuseIPDB
 	let cycleId = 1;
 	while (true) {
-		log('info', `===================== New Reporting Cycle (v${moduleVersion}) =====================`);
+		log('log', `===================== New Reporting Cycle (v${moduleVersion}) =====================`);
 
 		const blockedIPEvents = await fetchBlockedIPs();
 		if (!blockedIPEvents) {
@@ -135,7 +135,7 @@ const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErro
 				const hoursAgo = Math.floor(timeDifference / (1000 * 60 * 60));
 				const minutesAgo = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
 				const secondsAgo = Math.floor((timeDifference % (1000 * 60)) / 1000);
-				log('info', `${ip} was reported or rate-limited ${hoursAgo}h ${minutesAgo}m ${secondsAgo}s ago. Skipping...`);
+				log('log', `${ip} was reported or rate-limited ${hoursAgo}h ${minutesAgo}m ${secondsAgo}s ago. Skipping...`);
 				cycleSkippedCount++;
 				continue;
 			}
@@ -146,7 +146,7 @@ const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErro
 					logToCSV(event.rayName, ip, hostname, endpoint, null, 'Skipped - Image Request', country);
 
 					if (imageRequestLogged) continue;
-					log('info', 'Skipping image requests in this cycle...');
+					log('log', 'Skipping image requests in this cycle...');
 					imageRequestLogged = true;
 				}
 
@@ -160,17 +160,17 @@ const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErro
 			}
 		}
 
-		log('info', `Cycle Summary [${cycleId}]:`);
-		log('info', `- Reported IPs: ${cycleReportedCount}`);
-		log('info', `- Total IPs processed: ${cycleProcessedCount}`);
-		log('info', `- Skipped IPs: ${cycleSkippedCount}`);
-		log('info', `- Skipped due to Image Requests: ${cycleImageSkippedCount}`);
-		log('info', `- 429 Too Many Requests: ${cycleErrorCounts.blocked}`);
-		log('info', `- No response errors: ${cycleErrorCounts.noResponse}`);
-		log('info', `- Other errors: ${cycleErrorCounts.otherErrors}`);
-		log('info', '==================== End of Reporting Cycle ====================');
+		log('log', `Cycle Summary [${cycleId}]:`);
+		log('log', `- Reported IPs: ${cycleReportedCount}`);
+		log('log', `- Total IPs processed: ${cycleProcessedCount}`);
+		log('log', `- Skipped IPs: ${cycleSkippedCount}`);
+		log('log', `- Skipped due to Image Requests: ${cycleImageSkippedCount}`);
+		log('log', `- 429 Too Many Requests: ${cycleErrorCounts.blocked}`);
+		log('log', `- No response errors: ${cycleErrorCounts.noResponse}`);
+		log('log', `- Other errors: ${cycleErrorCounts.otherErrors}`);
+		log('log', '==================== End of Reporting Cycle ====================');
 
-		log('info', `Waiting ${formatDelay(CYCLE_INTERVAL)}...`);
+		log('log', `Waiting ${formatDelay(CYCLE_INTERVAL)}...`);
 		cycleId++;
 		await new Promise(resolve => setTimeout(resolve, CYCLE_INTERVAL));
 	}

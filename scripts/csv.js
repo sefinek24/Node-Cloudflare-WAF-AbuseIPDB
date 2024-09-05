@@ -12,7 +12,7 @@ const checkCSVSize = () => {
 	const stats = fs.statSync(CSV_FILE_PATH);
 	if (stats.size > MAX_CSV_SIZE_BYTES) {
 		fs.writeFileSync(CSV_FILE_PATH, CSV_HEADER);
-		log('info', `CSV file size exceeded ${MAX_CSV_SIZE_BYTES / (1024 * 1024)} MB. File has been reset.`);
+		log('log', `CSV file size exceeded ${MAX_CSV_SIZE_BYTES / (1024 * 1024)} MB. File has been reset.`);
 	}
 };
 
