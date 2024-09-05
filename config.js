@@ -17,10 +17,10 @@ const SUCCESS_COOLDOWN_MS = 2 * 1000; // 2s
 // This ensures that WAF violations originating from your IP address are not reported to AbuseIPDB.
 const IP_REFRESH_INTERVAL = 9 * 60 * 1000; // 9m
 
-// Also report IP addresses to api.sefinek.net to support the development of the repository https://github.com/sefinek24/malicious-ip-addresses.
+// Report IP addresses to api.sefinek.net to support the development of the repository: https://github.com/sefinek24/malicious-ip-addresses.
 const REPORT_TO_SEFINEK_API = true;
 
-// API key for api.sefinek.net. Contact me to obtain it and contribute to the growth of the sefinek24/malicious-ip-addresses list.
+// API key for api.sefinek.net. Contact me to get it and contribute to the sefinek24/malicious-ip-addresses list.
 const SEFINEK_API_SECRET = 'keyboardcat';
 
 // How often should logs (reported_ips.csv) be analyzed and sent to Sefinek API?
