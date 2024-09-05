@@ -50,13 +50,13 @@ const isIPReportedRecently = (ip, reportedIPs) => {
 const reportIP = async (event, url, country, cycleErrorCounts) => {
 	if (!url) {
 		logToCSV(event.rayName, event.clientIP, url, 'Failed - Missing URL', country);
-		log('warn', `Error while reporting: ${event.clientIP}; URI: ${url}; (Missing URL)`);
+		log('warn', `Missing URL ${event.clientIP}; URI: ${url};`);
 		return false;
 	}
 
 	if (url.length > MAX_URL_LENGTH) {
 		logToCSV(event.rayName, event.clientIP, url, 'Failed - URL too long', country);
-		log('warn', `Error 422 while reporting: ${event.clientIP}; URI: ${url}; (URL too long)`);
+		log('log', `URL too long ${event.clientIP}; URI: ${url};`);
 		return false;
 	}
 
@@ -68,16 +68,16 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 		}, { headers: headers.ABUSEIPDB });
 
 		logToCSV(event.rayName, event.clientIP, url, 'Reported', country);
-		log('info', `Reported: ${event.clientIP}; URI: ${url}`);
+		log('info', `Reported ${event.clientIP}; URI: ${url}`);
 
 		return true;
 	} catch (err) {
 		if (err.response?.status === 429) {
 			logToCSV(event.rayName, event.clientIP, url, 'Failed - 429 Too Many Requests', country);
-			log('info', `Rate limited (429) while reporting: ${event.clientIP}; URI: ${url};`);
+			log('info', `Rate limited (429) while reporting ${event.clientIP}; URI: ${url};`);
 			cycleErrorCounts.blocked++;
 		} else {
-			log('error', `Error ${err.response?.status} while reporting: ${event.clientIP}; URI: ${url}; (${err.response?.data})`);
+			log('error', `Error ${err.response?.status} while reporting ${event.clientIP}; URI: ${url}; (${err.response?.data})`);
 			cycleErrorCounts.otherErrors++;
 		}
 
