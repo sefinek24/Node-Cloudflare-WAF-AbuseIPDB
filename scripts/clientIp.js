@@ -1,8 +1,8 @@
 const { axios } = require('../services/axios.js');
+const { IP_REFRESH_INTERVAL } = require('../config.js');
 const log = require('./log.js');
 
 let address = null; // Holds the IP address
-const refreshInterval = 360000; // 6 minutes
 
 const fetchIPAddress = async () => {
 	try {
@@ -17,6 +17,7 @@ const fetchIPAddress = async () => {
 	}
 };
 
-setInterval(fetchIPAddress, refreshInterval);
 
-module.exports = { fetchIPAddress, address };
+setInterval(fetchIPAddress, IP_REFRESH_INTERVAL);
+
+module.exports = { fetchIPAddress, getAddress: () => address };

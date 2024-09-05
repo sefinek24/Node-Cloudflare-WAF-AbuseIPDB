@@ -4,7 +4,4 @@ const levels = {
 	error: '[FAIL]'
 };
 
-module.exports = (level, message) => {
-	const timestamp = process.env.NODE_ENV === 'development' ? `${new Date().toISOString()}: ` : '';
-	console[level](`${levels[level]} ${timestamp}${message}`);
-};
+module.exports = (level, msg) => console[level](`${levels[level]} ${msg}`);

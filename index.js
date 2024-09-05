@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const { axios, moduleVersion } = require('./services/axios.js');
+const { CYCLE_INTERVAL, REPORTED_IP_COOLDOWN_MS, MAX_URL_LENGTH, SUCCESS_COOLDOWN_MS } = require('./config.js');
 const PAYLOAD = require('./scripts/payload.js');
 const generateComment = require('./scripts/generateComment.js');
 const isImageRequest = require('./scripts/isImageRequest.js');
@@ -9,14 +10,6 @@ const { logToCSV, readReportedIPs, wasImageRequestLogged } = require('./scripts/
 const formatDelay = require('./scripts/formatDelay.js');
 const clientIp = require('./scripts/clientIp.js');
 const log = require('./scripts/log.js');
-
-const MAIN_DELAY = process.env.NODE_ENV === 'production'
-	? 3 * 60 * 60 * 1000
-	: 8 * 1000;
-
-const REPORTED_IP_COOLDOWN_MS = 7 * 60 * 60 * 1000;
-const COOLDOWN_MS = 2000;
-const MAX_URL_LENGTH = 2000;
 
 const fetchBlockedIPs = async () => {
 	try {
@@ -56,7 +49,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 
 	if (event.clientIP === clientIp.address) {
 		logToCSV(event.rayName, event.clientIP, url, 'Your IP address', country);
-		log('warn', `Your IP address (${event.clientIP}) was unexpectedly received from Cloudflare. URI: ${url}; Ignoring...`);
+		log('log', `Your IP address (${event.clientIP}) was unexpectedly received from Cloudflare. URI: ${url}; Ignoring...`);
 		return false;
 	}
 
@@ -100,10 +93,10 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 		}
 	}
 
-	log('info', 'Starting, please wait...');
+	log('info', 'Loading data, please wait...');
 	await clientIp.fetchIPAddress();
-	let cycleId = 1;
 
+	let cycleId = 1;
 	while (true) {
 		log('info', `===================== New Reporting Cycle (v${moduleVersion}) =====================`);
 
@@ -112,6 +105,9 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 			log('warn', 'No events fetched, skipping cycle...');
 			continue;
 		}
+
+		const userIp = clientIp.getAddress();
+		if (!userIp) log('warn', `Your IP address is missing! Received: ${userIp}`);
 
 		const reportedIPs = readReportedIPs();
 		let cycleImageSkippedCount = 0, cycleProcessedCount = 0, cycleReportedCount = 0, cycleSkippedCount = 0;
@@ -150,7 +146,7 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 			const wasReported = await reportIP(event, url, country, cycleErrorCounts);
 			if (wasReported) {
 				cycleReportedCount++;
-				await new Promise(resolve => setTimeout(resolve, COOLDOWN_MS));
+				await new Promise(resolve => setTimeout(resolve, SUCCESS_COOLDOWN_MS));
 			}
 		}
 
@@ -164,8 +160,8 @@ const reportIP = async (event, url, country, cycleErrorCounts) => {
 		log('info', `- Other errors: ${cycleErrorCounts.otherErrors}`);
 		log('info', '==================== End of Reporting Cycle ====================');
 
-		log('info', `Waiting ${formatDelay(MAIN_DELAY)}...`);
+		log('info', `Waiting ${formatDelay(CYCLE_INTERVAL)}...`);
 		cycleId++;
-		await new Promise(resolve => setTimeout(resolve, MAIN_DELAY));
+		await new Promise(resolve => setTimeout(resolve, CYCLE_INTERVAL));
 	}
 })();

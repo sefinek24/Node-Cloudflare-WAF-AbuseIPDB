@@ -1,6 +1,6 @@
 {
   "name": "cf-waf-to-abuseipdb",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A Node.js project that enables automatic reporting of incidents detected by Cloudflare WAF to the AbuseIPDB database.",
   "keywords": [
     "abuseipdb",
