@@ -35,6 +35,6 @@ module.exports = async () => {
 
 		uniqueLogs.forEach(ip => updateSefinekAPIInCSV(ip.rayId, true));
 	} catch (err) {
-		log('error', `Failed to send logs to Sefinek API. Status: ${err.response?.status || err.status}. Message: ${err.response?.data?.message || 'Unknown error.'}`);
+		log('error', `Failed to send logs to Sefinek API. Status: ${err.status}. Message: ${err.response?.data?.message || err.stack}`);
 	}
 };
