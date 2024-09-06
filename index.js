@@ -30,7 +30,7 @@ const fetchBlockedIPs = async () => {
 };
 
 const isIPReportedRecently = (ip, reportedIPs) => {
-	const lastReport = reportedIPs.find(entry => entry.ip === ip && (entry.action === 'Reported' || entry.action.startsWith('Failed')));
+	const lastReport = reportedIPs.find(entry => entry.ip === ip && (entry.action === 'REPORTED' || entry.action.startsWith('TOO_MANY_REQUESTS')));
 	if (lastReport) {
 		const lastTimestamp = new Date(lastReport.timestamp).getTime();
 		const currentTime = Date.now();
@@ -41,23 +41,23 @@ const isIPReportedRecently = (ip, reportedIPs) => {
 	return { recentlyReported: false };
 };
 
-const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErrorCounts) => {
+const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErrorCounts) => {
 	const uri = `${hostname}${endpoint}`;
 
 	if (!uri) {
-		logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Failed - Missing URL', country);
+		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, 'MISSING_URI');
 		log('warn', `Missing URL ${event.clientIP}; URI: ${uri}`);
 		return false;
 	}
 
 	if (event.clientIP === clientIp.address) {
-		logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Your IP address', country);
+		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, 'YOUR_IP_ADDRESS');
 		log('log', `Your IP address (${event.clientIP}) was unexpectedly received from Cloudflare. URI: ${uri}; Ignoring...`);
 		return false;
 	}
 
 	if (uri.length > MAX_URL_LENGTH) {
-		logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Failed - URL too long', country);
+		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, 'URI_TOO_LONG');
 		log('log', `URL too long ${event.clientIP}; URI: ${uri}`);
 		return false;
 	}
@@ -69,13 +69,13 @@ const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErro
 			comment: generateComment(event)
 		}, { headers: headers.ABUSEIPDB });
 
-		logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Reported', country);
+		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, 'REPORTED');
 		log('log', `Reported ${event.clientIP}; URI: ${uri}`);
 
 		return true;
 	} catch (err) {
 		if (err.response?.status === 429) {
-			logToCSV(event.rayName, event.clientIP, hostname, endpoint, event.userAgent, 'Failed - 429 Too Many Requests', country);
+			logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, 'TOO_MANY_REQUESTS');
 			log('log', `Rate limited (429) while reporting ${event.clientIP}; URI: ${uri}`);
 			cycleErrorCounts.blocked++;
 		} else {
@@ -143,7 +143,7 @@ const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErro
 			if (isImageRequest(event.clientRequestPath)) {
 				cycleImageSkippedCount++;
 				if (!wasImageRequestLogged(ip, reportedIPs)) {
-					logToCSV(event.rayName, ip, hostname, endpoint, null, 'Skipped - Image Request', country);
+					logToCSV(event.rayName, ip, country, hostname, endpoint, null, 'SKIPPED_IMAGE_REQUEST');
 
 					if (imageRequestLogged) continue;
 					log('log', 'Skipping image requests in this cycle...');
@@ -153,7 +153,7 @@ const reportIP = async (event, hostname, endpoint, userAgent, country, cycleErro
 				continue;
 			}
 
-			const wasReported = await reportIP(event, hostname, endpoint, event.userAgent, country, cycleErrorCounts);
+			const wasReported = await reportIP(event, country, hostname, endpoint, event.userAgent, cycleErrorCounts);
 			if (wasReported) {
 				cycleReportedCount++;
 				await new Promise(resolve => setTimeout(resolve, SUCCESS_COOLDOWN_MS));

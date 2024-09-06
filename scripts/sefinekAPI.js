@@ -5,8 +5,8 @@ const log = require('./log.js');
 const SEFINEK_API_URL = process.env.SEFINEK_API_URL || `${process.env.NODE_ENV === 'production' ? 'https://api.sefinek.net' : 'http://127.0.0.1:4010'}/api/v2/cloudflare-waf-abuseipdb/post`;
 
 module.exports = async () => {
-	const reportedIPs = readReportedIPs().filter(ip => ip.action === 'Reported' && ip.sefinekAPI === 'false');
-	if (reportedIPs.length === 0) return log('log', 'No IPs with action "Reported" and SefinekAPI false to send to Sefinek API');
+	const reportedIPs = readReportedIPs().filter(ip => ip.action === 'REPORTED' && ip.sefinekAPI === 'false');
+	if (reportedIPs.length === 0) return log('log', 'No IPs with `action Reported` and `SefinekAPI false` to send to Sefinek API');
 
 	const uniqueLogs = reportedIPs.reduce((acc, ip) => {
 		if (acc.seen.has(ip.ip)) return acc;

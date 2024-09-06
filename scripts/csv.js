@@ -4,7 +4,7 @@ const log = require('./log.js');
 
 const CSV_FILE_PATH = path.join(__dirname, '..', 'reported_ips.csv');
 const MAX_CSV_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB
-const CSV_HEADER = 'Timestamp,RayID,IP,Hostname,Endpoint,User-Agent,Action,Country,SefinekAPI\n';
+const CSV_HEADER = 'Timestamp,CF RayID,IP,Country,Hostname,Endpoint,User-Agent,Action,SefinekAPI\n';
 
 if (!fs.existsSync(CSV_FILE_PATH)) fs.writeFileSync(CSV_FILE_PATH, CSV_HEADER);
 
@@ -21,9 +21,9 @@ const escapeCSVValue = value => {
 	return value || '';
 };
 
-const logToCSV = (rayId, ip, hostname, endpoint, useragent, action, country, sefinekAPI) => {
+const logToCSV = (rayId, ip, country, hostname, endpoint, useragent, action, sefinekAPI) => {
 	checkCSVSize();
-	const logLine = `${new Date().toISOString()},${rayId},${ip},${hostname},${escapeCSVValue(endpoint)},${escapeCSVValue(useragent)},${action},${country || 'N/A'},${sefinekAPI || false}`;
+	const logLine = `${new Date().toISOString()},${rayId},${ip},${country || 'N/A'},${hostname},${escapeCSVValue(endpoint)},${escapeCSVValue(useragent)},${action},${sefinekAPI || false}`;
 	fs.appendFileSync(CSV_FILE_PATH, logLine + '\n');
 };
 
@@ -36,18 +36,18 @@ const readReportedIPs = () => {
 		.slice(1)
 		.filter(line => line.trim() !== '')
 		.map(line => {
-			const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+			const parts = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g);
 			if (!parts || parts.length < 9) return null;
 
 			return {
 				timestamp: new Date(parts[0]),
 				rayId: parts[1],
 				ip: parts[2],
-				hostname: parts[3],
-				endpoint: parts[4],
-				useragent: parts[5],
-				action: parts[6],
-				country: parts[7],
+				country: parts[3],
+				hostname: parts[4],
+				endpoint: parts[5],
+				useragent: parts[6].replace(/(^"|"$)/g, ''),
+				action: parts[7],
 				sefinekAPI: parts[8]
 			};
 		})
@@ -75,6 +75,6 @@ const updateSefinekAPIInCSV = (rayId, reportedToSefinekAPI) => {
 	fs.writeFileSync(CSV_FILE_PATH, updatedLines.join('\n'));
 };
 
-const wasImageRequestLogged = (ip, reportedIPs) => reportedIPs.some(entry => entry.ip === ip && entry.action === 'Skipped - Image Request');
+const wasImageRequestLogged = (ip, reportedIPs) => reportedIPs.some(entry => entry.ip === ip && entry.action === 'SKIPPED_IMAGE_REQUEST');
 
 module.exports = { logToCSV, readReportedIPs, updateSefinekAPIInCSV, wasImageRequestLogged };
