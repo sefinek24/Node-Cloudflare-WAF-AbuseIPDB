@@ -1,6 +1,6 @@
 // Main interval of each cycle.
-// In production mode, it's 3 hours, and in development mode, it's 8 seconds.
-const CYCLE_INTERVAL = process.env.NODE_ENV === 'production' ? 3 * 60 * 60 * 1000 : 8 * 1000;
+// In production mode, it's 1 hour, and in development mode, it's 8 seconds.
+const CYCLE_INTERVAL = process.env.NODE_ENV === 'production' ? 60 * 60 * 1000 : 8 * 1000;
 
 // The minimum time that must pass after reporting an IP address before it can be reported again.
 // The required time is >= 15 minutes, according to AbuseIPDB API limits.
