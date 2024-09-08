@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 const { axios, moduleVersion } = require('./services/axios.js');
-const { CYCLE_INTERVAL, REPORTED_IP_COOLDOWN_MS, MAX_URL_LENGTH, SUCCESS_COOLDOWN_MS, SEFINEK_API_INTERVAL } = require('./config.js');
+const { CYCLE_INTERVAL, REPORTED_IP_COOLDOWN_MS, MAX_URL_LENGTH, SUCCESS_COOLDOWN_MS, SEFINEK_API_INTERVAL, REPORT_TO_SEFINEK_API } = require('./config.js');
 const PAYLOAD = require('./scripts/payload.js');
 const generateComment = require('./scripts/generateComment.js');
 const SefinekAPI = require('./scripts/sefinekAPI.js');
@@ -100,9 +100,9 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 	await clientIp.fetchIPAddress();
 
 	// Sefinek API
-	setInterval(async () => {
-		await SefinekAPI();
-	}, SEFINEK_API_INTERVAL);
+	if (REPORT_TO_SEFINEK_API && SEFINEK_API_INTERVAL) {
+		setInterval(async () => await SefinekAPI(), SEFINEK_API_INTERVAL);
+	}
 
 	// AbuseIPDB
 	let cycleId = 1;
