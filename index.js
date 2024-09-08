@@ -100,7 +100,7 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 	await clientIp.fetchIPAddress();
 
 	// Sefinek API
-	if (REPORT_TO_SEFINEK_API && SEFINEK_API_INTERVAL) {
+	if (REPORT_TO_SEFINEK_API && SEFINEK_API_INTERVAL && process.env.SEFINEK_API_SECRET) {
 		setInterval(async () => await SefinekAPI(), SEFINEK_API_INTERVAL);
 	}
 
