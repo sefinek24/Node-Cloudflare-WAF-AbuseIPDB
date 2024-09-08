@@ -4,7 +4,7 @@ const CYCLE_INTERVAL = process.env.NODE_ENV === 'production' ? 60 * 60 * 1000 : 
 
 // The minimum time that must pass after reporting an IP address before it can be reported again.
 // The required time is >= 15 minutes, according to AbuseIPDB API limits.
-const REPORTED_IP_COOLDOWN_MS = 7 * 60 * 60 * 1000; // 7h
+const REPORTED_IP_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6h
 
 // The maximum URI length that can be reported to AbuseIPDB.
 // If Cloudflare returns a longer URI, the API request will fail.
