@@ -3,7 +3,7 @@ const query = `query ListFirewallEvents($zoneTag: string, $filter: FirewallEvent
     zones(filter: { zoneTag: $zoneTag }) {
       firewallEventsAdaptive(
         filter: $filter,
-        limit: 1000,
+        limit: 1500,
         orderBy: [datetime_DESC]
       ) {
         action
@@ -30,7 +30,7 @@ module.exports = () => {
 	const variables = {
 		zoneTag: process.env.CLOUDFLARE_ZONE_ID,
 		filter: {
-			datetime_geq: new Date(Date.now() - (60 * 60 * 10.5 * 1000)).toISOString(),
+			datetime_geq: new Date(Date.now() - (60 * 60 * 12 * 1000)).toISOString(),
 			datetime_leq: new Date(Date.now() - (60 * 60 * 8 * 1000)).toISOString(),
 			AND: [
 				{ action_neq: 'allow' },
