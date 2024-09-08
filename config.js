@@ -17,10 +17,10 @@ const SUCCESS_COOLDOWN_MS = 2 * 1000; // 2s
 // This ensures that WAF violations originating from your IP address are not reported to AbuseIPDB.
 const IP_REFRESH_INTERVAL = 55 * 60 * 1000; // 55m
 
-// Report IP addresses to api.sefinek.net to support the development of the repository https://github.com/sefinek24/malicious-ip-addresses. If true, please see the .env file.
+// Report IP addresses to api.sefinek.net to support the development of the repository at https://github.com/sefinek24/malicious-ip-addresses. If true, please see the .env file.
 const REPORT_TO_SEFINEK_API = true;
 
-// How often should logs (reported_ips.csv) be analyzed and sent to Sefinek API?
+// How often should the log (reported_ips.csv) be analyzed and sent to the Sefinek API?
 const SEFINEK_API_INTERVAL = process.env.NODE_ENV === 'production' ? 60 * 60 * 1000 : 4 * 1000;
 
 module.exports = { CYCLE_INTERVAL, REPORTED_IP_COOLDOWN_MS, MAX_URL_LENGTH, SUCCESS_COOLDOWN_MS, IP_REFRESH_INTERVAL, REPORT_TO_SEFINEK_API, SEFINEK_API_INTERVAL };
