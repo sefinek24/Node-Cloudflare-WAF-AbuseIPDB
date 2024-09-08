@@ -8,7 +8,7 @@ const REPORTED_IP_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6h
 
 // The maximum URI length that can be reported to AbuseIPDB.
 // If Cloudflare returns a longer URI, the API request will fail.
-const MAX_URL_LENGTH = 1000;
+const MAX_URL_LENGTH = 920;
 
 // Additional delay after each successful IP report to avoid overloading the AbuseIPDB API.
 const SUCCESS_COOLDOWN_MS = 2 * 1000; // 2s
