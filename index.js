@@ -30,7 +30,7 @@ const fetchBlockedIPs = async () => {
 };
 
 const isIPReportedRecently = (ip, reportedIPs) => {
-	const lastReport = reportedIPs.find(entry => entry.ip === ip && (entry.action === 'REPORTED' || entry.action.startsWith('TOO_MANY_REQUESTS')));
+	const lastReport = reportedIPs.find(entry => entry.ip === ip && (entry.action === 'REPORTED' || entry.action === 'TOO_MANY_REQUESTS'));
 	if (lastReport) {
 		const lastTimestamp = new Date(lastReport.timestamp).getTime();
 		const currentTime = Date.now();
