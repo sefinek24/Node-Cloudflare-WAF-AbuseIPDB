@@ -43,7 +43,6 @@ const isIPReportedRecently = (ip, reportedIPs) => {
 
 const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErrorCounts) => {
 	const uri = `${hostname}${endpoint}`;
-
 	if (!uri) {
 		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, 'MISSING_URI');
 		log('warn', `Missing URL ${event.clientIP}; URI: ${uri}`);
