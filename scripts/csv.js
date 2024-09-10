@@ -36,11 +36,11 @@ const readReportedIPs = () => {
 		.slice(1)
 		.filter(line => line.trim() !== '')
 		.map(line => {
-			const parts = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g);
+			const parts = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/g);
 			if (!parts || parts.length < 9) return null;
 
 			return {
-				timestamp: new Date(parts[0]),
+				timestamp: Date.parse(parts[0]),
 				rayId: parts[1],
 				ip: parts[2],
 				country: parts[3],
@@ -48,7 +48,7 @@ const readReportedIPs = () => {
 				endpoint: parts[5],
 				useragent: parts[6].replace(/(^"|"$)/g, ''),
 				action: parts[7],
-				sefinekAPI: parts[8]
+				sefinekAPI: parts[8] === 'true'
 			};
 		})
 		.filter(item => item !== null);

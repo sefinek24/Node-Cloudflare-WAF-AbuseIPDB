@@ -29,8 +29,12 @@ const fetchBlockedIPs = async () => {
 	}
 };
 
-const isIPReportedRecently = (ip, reportedIPs) => {
-	const lastReport = reportedIPs.find(entry => entry.ip === ip && (entry.action === 'REPORTED' || entry.action === 'TOO_MANY_REQUESTS'));
+const isIPReportedRecently = (rayId, ip, reportedIPs) => {
+	const lastReport = reportedIPs.find(entry =>
+		(entry.rayId === rayId || entry.ip === ip) &&
+		(entry.action === 'REPORTED' || entry.action === 'TOO_MANY_REQUESTS')
+	);
+
 	if (lastReport) {
 		const lastTimestamp = new Date(lastReport.timestamp).getTime();
 		const currentTime = Date.now();
@@ -75,7 +79,7 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 	} catch (err) {
 		if (err.response?.status === 429) {
 			logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, 'TOO_MANY_REQUESTS');
-			log('log', `Rate limited (429) while reporting ${event.clientIP}; URI: ${uri}`);
+			log('log', `Rate limited while reporting ${event.clientIP} (${event.rayName}); Endpoint: ${endpoint}`);
 			cycleErrorCounts.blocked++;
 		} else {
 			log('error', `Error ${err.response?.status} while reporting ${event.clientIP}; URI: ${uri}; (${err.response?.data})`);
@@ -125,11 +129,8 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 		for (const event of blockedIPEvents) {
 			cycleProcessedCount++;
 			const ip = event.clientIP;
-			const hostname = event.clientRequestHTTPHost;
-			const endpoint = event.clientRequestPath;
-			const country = event.clientCountryName;
 
-			const { recentlyReported, timeDifference } = isIPReportedRecently(ip, reportedIPs);
+			const { recentlyReported, timeDifference } = isIPReportedRecently(event.rayName, ip, reportedIPs);
 			if (recentlyReported) {
 				const hoursAgo = Math.floor(timeDifference / (1000 * 60 * 60));
 				const minutesAgo = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
@@ -142,8 +143,6 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 			if (isImageRequest(event.clientRequestPath)) {
 				cycleImageSkippedCount++;
 				if (!wasImageRequestLogged(ip, reportedIPs)) {
-					logToCSV(event.rayName, ip, country, hostname, endpoint, null, 'SKIPPED_IMAGE_REQUEST');
-
 					if (imageRequestLogged) continue;
 					log('log', 'Skipping image requests in this cycle...');
 					imageRequestLogged = true;
@@ -152,7 +151,7 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 				continue;
 			}
 
-			const wasReported = await reportIP(event, country, hostname, endpoint, event.userAgent, cycleErrorCounts);
+			const wasReported = await reportIP(event, event.clientCountryName, event.clientRequestHTTPHost, event.clientRequestPath, event.userAgent, cycleErrorCounts);
 			if (wasReported) {
 				cycleReportedCount++;
 				await new Promise(resolve => setTimeout(resolve, SUCCESS_COOLDOWN_MS));
