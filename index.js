@@ -121,6 +121,7 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 		const userIp = clientIp.getAddress();
 		if (!userIp) log('warn', `Your IP address is missing! Received: ${userIp}`);
 
+		let reportedIPs = readReportedIPs();
 		let cycleImageSkippedCount = 0, cycleProcessedCount = 0, cycleReportedCount = 0, cycleSkippedCount = 0;
 		const cycleErrorCounts = { blocked: 0, noResponse: 0, otherErrors: 0 };
 		let imageRequestLogged = false;
@@ -129,7 +130,6 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 			cycleProcessedCount++;
 			const ip = event.clientIP;
 
-			const reportedIPs = readReportedIPs();
 			const { recentlyReported, timeDifference } = isIPReportedRecently(event.rayName, ip, reportedIPs);
 			if (recentlyReported) {
 				const hoursAgo = Math.floor(timeDifference / (1000 * 60 * 60));
@@ -155,6 +155,8 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 			if (wasReported) {
 				cycleReportedCount++;
 				await new Promise(resolve => setTimeout(resolve, SUCCESS_COOLDOWN_MS));
+			} else {
+				reportedIPs = readReportedIPs();
 			}
 		}
 
