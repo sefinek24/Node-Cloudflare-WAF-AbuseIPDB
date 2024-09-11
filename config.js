@@ -21,6 +21,6 @@ const IP_REFRESH_INTERVAL = 80 * 60 * 1000; // 80m
 const REPORT_TO_SEFINEK_API = true;
 
 // How often should the log (reported_ips.csv) be analyzed and sent to the Sefinek API?
-const SEFINEK_API_INTERVAL = process.env.NODE_ENV === 'production' ? 60 * 60 * 1000 : 4 * 1000;
+const SEFINEK_API_INTERVAL = process.env.NODE_ENV === 'production' ? 60 * 60 * 1000 : 5 * 1000;
 
 module.exports = { CYCLE_INTERVAL, REPORTED_IP_COOLDOWN_MS, MAX_URL_LENGTH, SUCCESS_COOLDOWN_MS, IP_REFRESH_INTERVAL, REPORT_TO_SEFINEK_API, SEFINEK_API_INTERVAL };
