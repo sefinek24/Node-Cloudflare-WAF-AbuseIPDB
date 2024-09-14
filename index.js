@@ -91,20 +91,21 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 };
 
 (async () => {
-	if (process.env.NODE_ENV === 'production') {
-		try {
-			process.send('ready');
-		} catch (err) {
-			log('log', `Failed to send ready signal to parent process. ${err.message}`);
-		}
-	}
-
 	log('log', 'Loading data, please wait...');
 	await clientIp.fetchIPAddress();
 
 	// Sefinek API
 	if (REPORT_TO_SEFINEK_API && SEFINEK_API_INTERVAL && process.env.SEFINEK_API_SECRET) {
 		setInterval(async () => await SefinekAPI(), SEFINEK_API_INTERVAL);
+	}
+
+	// Ready
+	if (process.env.NODE_ENV === 'production') {
+		try {
+			process.send('ready');
+		} catch (err) {
+			log('log', `Failed to send ready signal to parent process. ${err.message}`);
+		}
 	}
 
 	// AbuseIPDB
