@@ -4,7 +4,7 @@ const log = require('./log.js');
 
 const CSV_FILE_PATH = path.join(__dirname, '..', 'reported_ips.csv');
 const MAX_CSV_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB
-const CSV_HEADER = 'Timestamp,CF RayID,IP,Country,Hostname,Endpoint,User-Agent,Action,SefinekAPI\n';
+const CSV_HEADER = 'Timestamp,CF RayID,IP,Country,Hostname,Endpoint,User-Agent,Action taken,Status,Sefinek API\n';
 
 if (!fs.existsSync(CSV_FILE_PATH)) fs.writeFileSync(CSV_FILE_PATH, CSV_HEADER);
 
@@ -21,9 +21,9 @@ const escapeCSVValue = value => {
 	return value || '';
 };
 
-const logToCSV = (rayId, ip, country, hostname, endpoint, useragent, action, sefinekAPI) => {
+const logToCSV = (rayId, ip, country = 'N/A', hostname, endpoint, useragent, actionTaken = 'N/A', status = 'N/A', sefinekAPI) => {
 	checkCSVSize();
-	const logLine = `${new Date().toISOString()},${rayId},${ip},${country || 'N/A'},${hostname},${escapeCSVValue(endpoint)},${escapeCSVValue(useragent)},${action},${sefinekAPI || false}`;
+	const logLine = `${new Date().toISOString()},${rayId},${ip},${country},${hostname},${escapeCSVValue(endpoint)},${escapeCSVValue(useragent)},${actionTaken.toUpperCase()},${status},${sefinekAPI || false}`;
 	fs.appendFileSync(CSV_FILE_PATH, logLine + '\n');
 };
 
@@ -48,7 +48,8 @@ const readReportedIPs = () => {
 				endpoint: parts[5],
 				useragent: parts[6].replace(/(^"|"$)/g, ''),
 				action: parts[7],
-				sefinekAPI: parts[8] === 'true'
+				status: parts[8],
+				sefinekAPI: parts[9] === 'true'
 			};
 		})
 		.filter(item => item !== null);
@@ -66,7 +67,7 @@ const updateSefinekAPIInCSV = (rayId, reportedToSefinekAPI) => {
 	const updatedLines = lines.map(line => {
 		const parts = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/g);
 		if (parts.length >= 9 && parts[1] === rayId) {
-			parts[8] = reportedToSefinekAPI;
+			parts[9] = reportedToSefinekAPI;
 			return parts.join(',');
 		}
 		return line;

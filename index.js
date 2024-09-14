@@ -48,19 +48,19 @@ const isIPReportedRecently = (rayId, ip, reportedIPs) => {
 const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErrorCounts) => {
 	const uri = `${hostname}${endpoint}`;
 	if (!uri) {
-		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, 'MISSING_URI');
+		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, event.action, 'MISSING_URI');
 		log('warn', `Missing URL ${event.clientIP}; URI: ${uri}`);
 		return false;
 	}
 
 	if (event.clientIP === clientIp.address) {
-		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, 'YOUR_IP_ADDRESS');
+		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, event.action, 'YOUR_IP_ADDRESS');
 		log('log', `Your IP address (${event.clientIP}) was unexpectedly received from Cloudflare. URI: ${uri}; Ignoring...`);
 		return false;
 	}
 
 	if (uri.length > MAX_URL_LENGTH) {
-		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, 'URI_TOO_LONG');
+		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, event.action, 'URI_TOO_LONG');
 		log('log', `URL too long ${event.clientIP}; URI: ${uri}`);
 		return false;
 	}
@@ -72,13 +72,13 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 			comment: generateComment(event)
 		}, { headers: headers.ABUSEIPDB });
 
-		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, 'REPORTED');
+		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, event.action, 'REPORTED');
 		log('log', `Reported ${event.clientIP}; URI: ${uri}`);
 
 		return true;
 	} catch (err) {
 		if (err.response?.status === 429) {
-			logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, 'TOO_MANY_REQUESTS');
+			logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, event.action, 'TOO_MANY_REQUESTS');
 			log('log', `Rate limited while reporting ${event.clientIP} (${event.rayName}); Endpoint: ${endpoint}`);
 			cycleErrorCounts.blocked++;
 		} else {
