@@ -79,7 +79,7 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 	} catch (err) {
 		if (err.response?.status === 429) {
 			logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, event.action, 'TOO_MANY_REQUESTS');
-			log('log', `Rate limited while reporting ${event.clientIP} (${event.rayName}); Endpoint: ${endpoint}`);
+			log('log', `429 for ${event.clientIP} (${event.rayName}); Endpoint: ${endpoint}`);
 			cycleErrorCounts.blocked++;
 		} else {
 			log('error', `Error ${err.response?.status} while reporting ${event.clientIP}; URI: ${uri}; (${err.response?.data})`);
