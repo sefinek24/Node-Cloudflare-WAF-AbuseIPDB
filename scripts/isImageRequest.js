@@ -1,2 +1,2 @@
-const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp'];
-module.exports = loc => imageExtensions.some(ext => loc.toLowerCase().endsWith(ext));
+const extensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp'];
+module.exports = loc => extensions.some(ext => loc.toLowerCase().endsWith(ext));
