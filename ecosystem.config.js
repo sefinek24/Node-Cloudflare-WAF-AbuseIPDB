@@ -1,6 +1,6 @@
 module.exports = {
 	apps: [{
-		name: 'waf-abuseipdb',
+		name: 'waf',
 		script: './index.js',
 
 		// Configuration options
