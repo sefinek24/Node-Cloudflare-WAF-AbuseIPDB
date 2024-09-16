@@ -1,11 +1,13 @@
 const { axios } = require('../services/axios.js');
 const { readReportedIPs, updateSefinekAPIInCSV } = require('./csv.js');
 const log = require('./log.js');
+const clientIp = require('./clientIp');
 
 const SEFINEK_API_URL = process.env.SEFINEK_API_URL || `${process.env.NODE_ENV === 'production' ? 'https://api.sefinek.net' : 'http://127.0.0.1:4010'}/api/v2/cloudflare-waf-abuseipdb/post`;
 
 module.exports = async () => {
-	const reportedIPs = readReportedIPs().filter(ip => ip.status === 'REPORTED' && !ip.sefinekAPI);
+	const userIp = clientIp.getAddress();
+	const reportedIPs = readReportedIPs().filter(x => x.status === 'REPORTED' && x.ip !== userIp && !x.sefinekAPI);
 	if (reportedIPs.length === 0) return log('log', 'No IPs with `action Reported` and `SefinekAPI false` to send to Sefinek API');
 
 	const uniqueLogs = reportedIPs.reduce((acc, ip) => {
