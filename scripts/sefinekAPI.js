@@ -1,7 +1,7 @@
 const { axios } = require('../services/axios.js');
 const { readReportedIPs, updateSefinekAPIInCSV } = require('./csv.js');
 const log = require('./log.js');
-const clientIp = require('./clientIp');
+const clientIp = require('./clientIp.js');
 
 const SEFINEK_API_URL = process.env.SEFINEK_API_URL || `${process.env.NODE_ENV === 'production' ? 'https://api.sefinek.net' : 'http://127.0.0.1:4010'}/api/v2/cloudflare-waf-abuseipdb/post`;
 
