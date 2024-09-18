@@ -3,7 +3,7 @@ const { readReportedIPs, updateSefinekAPIInCSV } = require('./csv.js');
 const log = require('./log.js');
 const clientIp = require('./clientIp.js');
 
-const SEFINEK_API_URL = process.env.SEFINEK_API_URL || `${process.env.NODE_ENV === 'production' ? 'https://api.sefinek.net' : 'http://127.0.0.1:4010'}/api/v2/cloudflare-waf-abuseipdb/post`;
+const API_URL = `${process.env.SEFINEK_API_URL}/api/v2/cloudflare-waf-abuseipdb/post`;
 
 module.exports = async () => {
 	const userIp = clientIp.getAddress();
@@ -20,7 +20,7 @@ module.exports = async () => {
 	if (!uniqueLogs?.length) return log('log', 'No unique IPs to send to Sefinek API');
 
 	try {
-		const res = await axios.post(SEFINEK_API_URL, {
+		const res = await axios.post(API_URL, {
 			reportedIPs: uniqueLogs.map(ip => ({
 				rayId: ip.rayId,
 				ip: ip.ip,
