@@ -1,6 +1,6 @@
 {
   "name": "waf-to-abuseipdb",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "A Node.js project that enables automatic reporting of incidents detected by Cloudflare WAF to the AbuseIPDB database.",
   "keywords": [
     "abuseipdb",
@@ -20,7 +20,7 @@
     "url": "git+https://github.com/sefinek24/Node-Cloudflare-WAF-AbuseIPDB.git"
   },
   "license": "MIT",
-  "author": "Sefinek <contact@nekosia.cat> (https://sefinek.net)",
+  "author": "Sefinek <contact@sefinek.net> (https://sefinek.net)",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

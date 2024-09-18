@@ -8,7 +8,7 @@ const SEFINEK_API_URL = process.env.SEFINEK_API_URL || `${process.env.NODE_ENV =
 module.exports = async () => {
 	const userIp = clientIp.getAddress();
 	const reportedIPs = readReportedIPs().filter(x => x.status === 'REPORTED' && x.ip !== userIp && !x.sefinekAPI);
-	if (reportedIPs.length === 0) return log('log', 'No IPs with `action Reported` and `SefinekAPI false` to send to Sefinek API');
+	if (reportedIPs.length === 0) return;
 
 	const uniqueLogs = reportedIPs.reduce((acc, ip) => {
 		if (acc.seen.has(ip.ip)) return acc;

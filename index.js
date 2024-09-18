@@ -30,16 +30,20 @@ const fetchBlockedIPs = async () => {
 };
 
 const isIPReportedRecently = (rayId, ip, reportedIPs) => {
-	const lastReport = reportedIPs.find(entry =>
-		(entry.rayId === rayId || entry.ip === ip) &&
-		(entry.action === 'REPORTED' || entry.action === 'TOO_MANY_REQUESTS')
-	);
+	const lastReport = reportedIPs.reduce((latest, entry) => {
+		if (
+			(entry.rayId === rayId || entry.ip === ip) &&
+			(entry.status === 'TOO_MANY_REQUESTS' || entry.status === 'REPORTED') &&
+			(!latest || entry.timestamp > latest.timestamp)
+		) return entry;
+		return latest;
+	}, null);
 
 	if (lastReport) {
-		const lastTimestamp = new Date(lastReport.timestamp).getTime();
-		const currentTime = Date.now();
-		const timeDifference = currentTime - lastTimestamp;
-		if (timeDifference < REPORTED_IP_COOLDOWN_MS) return { recentlyReported: true, timeDifference };
+		const timeDifference = Date.now() - lastReport.timestamp;
+		if (timeDifference < REPORTED_IP_COOLDOWN_MS) {
+			return { recentlyReported: true, timeDifference, reason: lastReport.status === 'TOO_MANY_REQUESTS' ? 'RATE-LIMITED' : 'REPORTED' };
+		}
 	}
 
 	return { recentlyReported: false };
@@ -96,7 +100,7 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 
 	// Sefinek API
 	if (REPORT_TO_SEFINEK_API && SEFINEK_API_INTERVAL && process.env.SEFINEK_API_SECRET) {
-		setInterval(async () => await SefinekAPI(), SEFINEK_API_INTERVAL);
+		setInterval(SefinekAPI, SEFINEK_API_INTERVAL);
 	}
 
 	// Ready
@@ -111,7 +115,7 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 	// AbuseIPDB
 	let cycleId = 1;
 	while (true) {
-		log('log', `===================== New Reporting Cycle (v${moduleVersion}) =====================`);
+		log('log', `================ New Reporting Cycle v${moduleVersion}; ID: ${cycleId} ================`);
 
 		const blockedIPEvents = await fetchBlockedIPs();
 		if (!blockedIPEvents) {
@@ -136,12 +140,13 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 			}
 
 			const reportedIPs = readReportedIPs();
-			const { recentlyReported, timeDifference } = isIPReportedRecently(event.rayName, ip, reportedIPs);
+			const { recentlyReported, timeDifference, reason } = isIPReportedRecently(event.rayName, ip, reportedIPs);
 			if (recentlyReported) {
 				const hoursAgo = Math.floor(timeDifference / (1000 * 60 * 60));
 				const minutesAgo = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
 				const secondsAgo = Math.floor((timeDifference % (1000 * 60)) / 1000);
-				log('log', `${ip} was reported or rate-limited ${hoursAgo}h ${minutesAgo}m ${secondsAgo}s ago. Skipping...`);
+
+				log('log', `${ip} was ${reason} ${hoursAgo}h ${minutesAgo}m ${secondsAgo}s ago. Skipping...`);
 				cycleSkippedCount++;
 				continue;
 			}
@@ -164,7 +169,6 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 			}
 		}
 
-		log('log', `Cycle Summary [${cycleId}]:`);
 		log('log', `- Reported IPs: ${cycleReportedCount}`);
 		log('log', `- Total IPs processed: ${cycleProcessedCount}`);
 		log('log', `- Skipped IPs: ${cycleSkippedCount}`);
@@ -172,7 +176,7 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 		log('log', `- 429 Too Many Requests: ${cycleErrorCounts.blocked}`);
 		log('log', `- No response errors: ${cycleErrorCounts.noResponse}`);
 		log('log', `- Other errors: ${cycleErrorCounts.otherErrors}`);
-		log('log', '==================== End of Reporting Cycle ====================');
+		log('log', '===================== End of Reporting Cycle =====================');
 
 		log('log', `Waiting ${formatDelay(CYCLE_INTERVAL)}...`);
 		cycleId++;
