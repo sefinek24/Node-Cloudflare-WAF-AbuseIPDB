@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 const { axios, moduleVersion } = require('./services/axios.js');
-const { CYCLE_INTERVAL, REPORTED_IP_COOLDOWN_MS, MAX_URL_LENGTH, SUCCESS_COOLDOWN_MS, SEFINEK_API_INTERVAL, REPORT_TO_SEFINEK_API } = require('./config.js');
+const { CYCLE_INTERVAL, REPORTED_IP_COOLDOWN_MS, MAX_URL_LENGTH, SUCCESS_COOLDOWN, SEFINEK_API_INTERVAL, REPORT_TO_SEFINEK_API } = require('./config.js');
 const PAYLOAD = require('./scripts/payload.js');
 const generateComment = require('./scripts/generateComment.js');
 const SefinekAPI = require('./scripts/sefinekAPI.js');
@@ -165,7 +165,7 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 			const wasReported = await reportIP(event, event.clientCountryName, event.clientRequestHTTPHost, event.clientRequestPath, event.userAgent, cycleErrorCounts);
 			if (wasReported) {
 				cycleReportedCount++;
-				await new Promise(resolve => setTimeout(resolve, SUCCESS_COOLDOWN_MS));
+				await new Promise(resolve => setTimeout(resolve, SUCCESS_COOLDOWN));
 			}
 		}
 
