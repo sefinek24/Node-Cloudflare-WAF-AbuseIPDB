@@ -3,7 +3,7 @@ const { readReportedIPs, updateSefinekAPIInCSV } = require('./csv.js');
 const log = require('./log.js');
 const clientIp = require('./clientIp.js');
 
-const API_URL = `${process.env.SEFINEK_API_URL}/api/v2/cloudflare-waf-abuseipdb/post`;
+const API_URL = `${process.env.SEFINEK_API_URL}/cloudflare-waf-abuseipdb/post`;
 
 module.exports = async () => {
 	const userIp = clientIp.getAddress();
