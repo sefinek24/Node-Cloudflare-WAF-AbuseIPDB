@@ -27,7 +27,8 @@ module.exports = async () => {
 				endpoint: ip.endpoint,
 				useragent: ip.useragent.replace(/"/g, ''),
 				action: ip.action,
-				country: ip.country
+				country: ip.country,
+				timestamp: ip.timestamp
 			}))
 		}, {
 			headers: { 'Authorization': process.env.SEFINEK_API_SECRET }
