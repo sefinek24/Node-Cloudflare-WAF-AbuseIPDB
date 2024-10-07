@@ -7,7 +7,7 @@ const API_URL = `${process.env.SEFINEK_API_URL}/cloudflare-waf-abuseipdb/post`;
 
 module.exports = async () => {
 	const userIp = clientIp.getAddress();
-	const reportedIPs = readReportedIPs().filter(x => x.status === 'REPORTED' && x.ip !== userIp && !['//video', '//js', '//images', '//imgs'].includes(x.endpoint) && !x.sefinekAPI);
+	const reportedIPs = readReportedIPs().filter(x => x.status === 'REPORTED' && x.ip !== userIp && !['//video', '//js', '//images', '//imgs', 'favicon.ico'].includes(x.endpoint) && !x.sefinekAPI);
 	if (reportedIPs.length === 0) return;
 
 	const uniqueLogs = reportedIPs.reduce((acc, ip) => {
