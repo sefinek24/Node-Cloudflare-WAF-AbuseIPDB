@@ -9,8 +9,12 @@ module.exports = async () => {
 	const userIp = clientIp.getAddress();
 	const reportedIPs = readReportedIPs().filter(x =>
 		x.status === 'REPORTED' &&
-		x.ip !== userIp && !['//video', '//js', '//images', '//imgs', 'favicon.ico'].includes(x.endpoint) &&
-		!x.sefinekAPI);
+		x.ip !== userIp &&
+		!['//video', '//js', '//images', '//imgs', 'favicon.ico'].some(endpoint => x.endpoint.includes(endpoint)) && // Endpoints
+		x.hostname !== 'blocklist.sefinek.net' && // Domains
+		!['Chrome/129', 'Chrome/130'].some(agent => x.useragent.includes(agent)) && // User-agents
+		!x.sefinekAPI
+	);
 
 	if (reportedIPs.length === 0) return;
 
