@@ -139,7 +139,7 @@ const reportIP = async (event, uri, country, hostname, endpoint, cycleErrorCount
 				continue;
 			}
 
-			const uri = `${event.hostname}${event.endpoint}`;
+			const uri = `${event.clientRequestHTTPHost}${event.clientRequestPath}`;
 			if (whitelist.includes(uri)) return log('log', `Ignoring ${uri}...`);
 
 			const reportedIPs = readReportedIPs();
