@@ -10,6 +10,7 @@ const headers = require('./scripts/headers.js');
 const { logToCSV, readReportedIPs, wasImageRequestLogged } = require('./scripts/csv.js');
 const formatDelay = require('./scripts/formatDelay.js');
 const clientIp = require('./scripts/clientIp.js');
+const whitelist = require('./whitelist.js');
 const log = require('./scripts/log.js');
 
 const fetchBlockedIPs = async () => {
@@ -49,8 +50,7 @@ const isIPReportedRecently = (rayId, ip, reportedIPs) => {
 	return { recentlyReported: false };
 };
 
-const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErrorCounts) => {
-	const uri = `${hostname}${endpoint}`;
+const reportIP = async (event, uri, country, hostname, endpoint, cycleErrorCounts) => {
 	if (!uri) {
 		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, event.action, 'MISSING_URI');
 		log('warn', `Missing URL ${event.clientIP}; URI: ${uri}`);
@@ -139,6 +139,9 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 				continue;
 			}
 
+			const uri = `${event.hostname}${event.endpoint}`;
+			if (whitelist.includes(uri)) return log('log', `Ignoring ${uri}...`);
+
 			const reportedIPs = readReportedIPs();
 			const { recentlyReported, timeDifference, reason } = isIPReportedRecently(event.rayName, ip, reportedIPs);
 			if (recentlyReported) {
@@ -162,7 +165,7 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 				continue;
 			}
 
-			const wasReported = await reportIP(event, event.clientCountryName, event.clientRequestHTTPHost, event.clientRequestPath, event.userAgent, cycleErrorCounts);
+			const wasReported = await reportIP(event, uri, event.clientCountryName, event.clientRequestHTTPHost, event.clientRequestPath, cycleErrorCounts);
 			if (wasReported) {
 				cycleReportedCount++;
 				await new Promise(resolve => setTimeout(resolve, SUCCESS_COOLDOWN));
