@@ -146,7 +146,7 @@ const reportIP = async (event, country, hostname, endpoint, userAgent, cycleErro
 				const minutesAgo = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
 				const secondsAgo = Math.floor((timeDifference % (1000 * 60)) / 1000);
 
-				log('log', `${ip} was ${reason} ${hoursAgo}h ${minutesAgo}m ${secondsAgo}s ago. Skipping...`);
+				if (process.env.NODE_ENV === 'development') log('log', `${ip} was ${reason} ${hoursAgo}h ${minutesAgo}m ${secondsAgo}s ago. Skipping...`);
 				cycleSkippedCount++;
 				continue;
 			}
