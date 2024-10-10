@@ -41,7 +41,7 @@ module.exports = async () => {
 			headers: { 'Authorization': process.env.SEFINEK_API_SECRET }
 		});
 
-		log('log', `Successfully sent ${res.data.count} logs to Sefinek API. Status: ${res.status}`);
+		log('log', `Successfully sent ${uniqueLogs.length} logs to Sefinek API. Status: ${res.status}`);
 
 		uniqueLogs.forEach(ip => updateSefinekAPIInCSV(ip.rayId, true));
 	} catch (err) {
