@@ -10,7 +10,8 @@ module.exports = async () => {
 		x.status === 'REPORTED' &&
 		x.ip !== clientIp.getAddress() &&
 		!['//video', '//js', '//images', '//imgs', 'favicon.ico'].some(endpoint => x.endpoint.includes(endpoint)) && // Endpoints
-		x.hostname !== 'blocklist.sefinek.net' && // Domains
+		['api.', 'cdn.'].some(prefix => x.hostname.startsWith(prefix)) && // Domains
+		x.hostname !== 'blocklist.sefinek.net' && // Domain
 		!['Chrome/129', 'Chrome/130'].some(agent => x.useragent.includes(agent)) && // User-agents
 		!x.sefinekAPI
 	);
