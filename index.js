@@ -139,8 +139,7 @@ const reportIP = async (event, uri, country, hostname, endpoint, cycleErrorCount
 				continue;
 			}
 
-			const uri = `${event.clientRequestHTTPHost}${event.clientRequestPath}`;
-			if (whitelist.includes(uri)) return log('log', `Ignoring ${uri}...`);
+			if (whitelist.includes(event.clientRequestPath)) return log('log', `Skipping ${event.clientRequestPath}...`);
 
 			const reportedIPs = readReportedIPs();
 			const { recentlyReported, timeDifference, reason } = isIPReportedRecently(event.rayName, ip, reportedIPs);
@@ -165,7 +164,7 @@ const reportIP = async (event, uri, country, hostname, endpoint, cycleErrorCount
 				continue;
 			}
 
-			const wasReported = await reportIP(event, uri, event.clientCountryName, event.clientRequestHTTPHost, event.clientRequestPath, cycleErrorCounts);
+			const wasReported = await reportIP(event, `${event.clientRequestHTTPHost}${event.clientRequestPath}`, event.clientCountryName, event.clientRequestHTTPHost, event.clientRequestPath, cycleErrorCounts);
 			if (wasReported) {
 				cycleReportedCount++;
 				await new Promise(resolve => setTimeout(resolve, SUCCESS_COOLDOWN));
