@@ -65,7 +65,7 @@ const reportIP = async (event, uri, country, hostname, endpoint, cycleErrorCount
 
 	if (uri.length > MAX_URL_LENGTH) {
 		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, event.action, 'URI_TOO_LONG');
-		// log('log', `URL too long ${event.clientIP}; URI: ${uri}`);
+		// log('log', `URI too long ${event.clientIP}; Received: ${uri}`);
 		return false;
 	}
 
