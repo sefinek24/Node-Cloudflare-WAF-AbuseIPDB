@@ -59,13 +59,13 @@ const reportIP = async (event, uri, country, hostname, endpoint, cycleErrorCount
 
 	if (event.clientIP === clientIp.address) {
 		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, event.action, 'YOUR_IP_ADDRESS');
-		log('log', `Your IP address (${event.clientIP}) was unexpectedly received from Cloudflare. URI: ${uri}; Ignoring...`);
+		log('log', `Your IP address (${event.clientIP}) was unexpectedly received from Cloudflare. URI: ${uri}`);
 		return false;
 	}
 
 	if (uri.length > MAX_URL_LENGTH) {
 		logToCSV(event.rayName, event.clientIP, country, hostname, endpoint, event.userAgent, event.action, 'URI_TOO_LONG');
-		log('log', `URL too long ${event.clientIP}; URI: ${uri}`);
+		// log('log', `URL too long ${event.clientIP}; URI: ${uri}`);
 		return false;
 	}
 
